@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.5.0
-  description: API para recepcao, processamento assincrono, operacao, historico e consulta de eventos.
+  version: 0.6.0
+  description: API para recepcao, processamento assincrono, operacao, historico, consulta e autenticacao por chave.
 servers:
   - url: http://localhost:8080
 paths:
@@ -15,6 +15,8 @@ paths:
   /api/v1/events:
     get:
       summary: Lista eventos recebidos e processados
+      security:
+        - OperationsApiKey: []
       parameters:
         - in: query
           name: status
@@ -30,8 +32,12 @@ paths:
       responses:
         '200':
           description: Lista de eventos
+        '401':
+          description: Chave de API invalida
     post:
       summary: Recebe um novo evento e o publica no RabbitMQ
+      security:
+        - IngestApiKey: []
       parameters:
         - in: header
           name: Idempotency-Key
@@ -53,11 +59,15 @@ paths:
           description: Chave de idempotencia reutilizada com payload diferente
         '422':
           description: Payload invalido
+        '401':
+          description: Chave de API invalida
         '503':
           description: Falha ao publicar o evento no RabbitMQ
   /api/v1/events/summary:
     get:
       summary: Retorna um resumo operacional do pipeline de eventos
+      security:
+        - OperationsApiKey: []
       parameters:
         - in: query
           name: event_name
@@ -67,9 +77,13 @@ paths:
       responses:
         '200':
           description: Resumo operacional calculado
+        '401':
+          description: Chave de API invalida
   /api/v1/events/{id}:
     get:
       summary: Consulta um evento recebido pelo identificador
+      security:
+        - OperationsApiKey: []
       parameters:
         - in: path
           name: id
@@ -80,11 +94,15 @@ paths:
       responses:
         '200':
           description: Evento encontrado
+        '401':
+          description: Chave de API invalida
         '404':
           description: Evento nao encontrado
   /api/v1/events/{id}/history:
     get:
       summary: Lista o historico cronologico de transicoes e acoes de um evento
+      security:
+        - OperationsApiKey: []
       parameters:
         - in: path
           name: id
@@ -95,11 +113,15 @@ paths:
       responses:
         '200':
           description: Historico do evento
+        '401':
+          description: Chave de API invalida
         '404':
           description: Evento nao encontrado
   /api/v1/events/{id}/retry:
     post:
       summary: Reenfileira manualmente um evento com falha de publicacao ou processamento
+      security:
+        - OperationsApiKey: []
       parameters:
         - in: path
           name: id
@@ -110,6 +132,8 @@ paths:
       responses:
         '202':
           description: Evento reenfileirado com sucesso
+        '401':
+          description: Chave de API invalida
         '404':
           description: Evento nao encontrado
         '409':
@@ -117,6 +141,15 @@ paths:
         '503':
           description: Falha ao reenfileirar o evento no RabbitMQ
 components:
+  securitySchemes:
+    IngestApiKey:
+      type: apiKey
+      in: header
+      name: X-Ingest-Api-Key
+    OperationsApiKey:
+      type: apiKey
+      in: header
+      name: X-Operations-Api-Key
   schemas:
     StoreEventRequest:
       type: object

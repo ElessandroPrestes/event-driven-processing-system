@@ -9,6 +9,8 @@ use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
+    configureEventPipelineApiKeys();
+
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
     $this->history = new InMemoryEventHistoryRepository;
@@ -20,7 +22,7 @@ beforeEach(function (): void {
 
 it('accepts a supported event and queues it', function (): void {
     $response = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-user-created-001'])
+        ->withHeaders(eventIngestHeaders('evt-user-created-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -48,7 +50,7 @@ it('accepts a supported event and queues it', function (): void {
 
 it('rejects unsupported event types', function (): void {
     $response = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-invalid-001'])
+        ->withHeaders(eventIngestHeaders('evt-invalid-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.deleted',
             'payload' => [
@@ -64,7 +66,7 @@ it('rejects unsupported event types', function (): void {
 
 it('returns the existing event when the same idempotency key is reused', function (): void {
     $firstResponse = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-duplicate-001'])
+        ->withHeaders(eventIngestHeaders('evt-duplicate-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'payment.received',
             'payload' => [
@@ -75,7 +77,7 @@ it('returns the existing event when the same idempotency key is reused', functio
     $eventId = $firstResponse->json('data.id');
 
     $secondResponse = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-duplicate-001'])
+        ->withHeaders(eventIngestHeaders('evt-duplicate-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'payment.received',
             'payload' => [
@@ -92,7 +94,7 @@ it('returns the existing event when the same idempotency key is reused', functio
 
 it('returns conflict when the same idempotency key is reused with a different payload', function (): void {
     $this
-        ->withHeaders(['Idempotency-Key' => 'evt-conflict-001'])
+        ->withHeaders(eventIngestHeaders('evt-conflict-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'invoice.generated',
             'payload' => [
@@ -102,7 +104,7 @@ it('returns conflict when the same idempotency key is reused with a different pa
         ->assertAccepted();
 
     $response = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-conflict-001'])
+        ->withHeaders(eventIngestHeaders('evt-conflict-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'invoice.generated',
             'payload' => [
@@ -120,7 +122,7 @@ it('marks the event as publish_failed when rabbitmq publishing fails', function 
     $this->publisher->shouldFail = true;
 
     $response = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-publish-failed-001'])
+        ->withHeaders(eventIngestHeaders('evt-publish-failed-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'notification.requested',
             'payload' => [
@@ -140,7 +142,7 @@ it('marks the event as publish_failed when rabbitmq publishing fails', function 
 
 it('shows a stored event by id', function (): void {
     $storeResponse = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-show-001'])
+        ->withHeaders(eventIngestHeaders('evt-show-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -150,7 +152,8 @@ it('shows a stored event by id', function (): void {
 
     $eventId = $storeResponse->json('data.id');
 
-    $this->getJson("/api/v1/events/{$eventId}")
+    $this->withHeaders(eventOperationsHeaders())
+        ->getJson("/api/v1/events/{$eventId}")
         ->assertOk()
         ->assertJsonPath('data.id', $eventId)
         ->assertJsonPath('data.event_name', 'user.created')

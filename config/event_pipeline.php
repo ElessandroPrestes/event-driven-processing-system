@@ -24,6 +24,17 @@ return [
         'idempotency_header' => 'Idempotency-Key',
     ],
 
+    'auth' => [
+        'ingest' => [
+            'header' => env('EVENT_INGEST_API_KEY_HEADER', 'X-Ingest-Api-Key'),
+            'key' => env('EVENT_INGEST_API_KEY', ''),
+        ],
+        'operations' => [
+            'header' => env('EVENT_OPERATIONS_API_KEY_HEADER', 'X-Operations-Api-Key'),
+            'key' => env('EVENT_OPERATIONS_API_KEY', ''),
+        ],
+    ],
+
     'consumer' => [
         'max_attempts' => (int) env('EVENT_CONSUMER_MAX_ATTEMPTS', 3),
         'idle_timeout' => (int) env('EVENT_CONSUMER_IDLE_TIMEOUT', 5),

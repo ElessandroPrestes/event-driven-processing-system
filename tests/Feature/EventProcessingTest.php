@@ -12,6 +12,8 @@ use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
+    configureEventPipelineApiKeys();
+
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
     $this->history = new InMemoryEventHistoryRepository;
@@ -23,7 +25,7 @@ beforeEach(function (): void {
 
 it('processes a queued event and stores the processing result', function (): void {
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-process-001'])
+        ->withHeaders(eventIngestHeaders('evt-process-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -52,7 +54,7 @@ it('requeues the event when processing fails before reaching the retry limit', f
     );
 
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-retry-001'])
+        ->withHeaders(eventIngestHeaders('evt-retry-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'payment.received',
             'payload' => [
@@ -77,7 +79,7 @@ it('marks the event as processing_failed after reaching the retry limit', functi
     );
 
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-fail-001'])
+        ->withHeaders(eventIngestHeaders('evt-fail-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'notification.requested',
             'payload' => [
@@ -98,7 +100,7 @@ it('marks the event as processing_failed after reaching the retry limit', functi
 
 it('skips a second processing attempt for an already processed event', function (): void {
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-skip-001'])
+        ->withHeaders(eventIngestHeaders('evt-skip-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'invoice.generated',
             'payload' => [
@@ -116,7 +118,7 @@ it('skips a second processing attempt for an already processed event', function 
 
 it('lists processed events through the api', function (): void {
     $firstEventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-list-001'])
+        ->withHeaders(eventIngestHeaders('evt-list-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -127,7 +129,7 @@ it('lists processed events through the api', function (): void {
         ->json('data.id');
 
     $secondEventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-list-002'])
+        ->withHeaders(eventIngestHeaders('evt-list-002'))
         ->postJson('/api/v1/events', [
             'event_name' => 'payment.received',
             'payload' => [
@@ -140,7 +142,9 @@ it('lists processed events through the api', function (): void {
     app(ProcessQueuedEventAction::class)->handle($firstEventId, 3);
     app(ProcessQueuedEventAction::class)->handle($secondEventId, 3);
 
-    $response = $this->getJson('/api/v1/events?status=processed');
+    $response = $this
+        ->withHeaders(eventOperationsHeaders())
+        ->getJson('/api/v1/events?status=processed');
 
     $response->assertOk()
         ->assertJsonPath('meta.count', 2)

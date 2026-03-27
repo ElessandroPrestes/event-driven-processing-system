@@ -22,4 +22,5 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - Não expor segredos em código; variáveis sensíveis permanecem em ambiente.
 - Manter imagem de aplicação com dependências mínimas para reduzir superfície de ataque.
 - Evitar exposição desnecessária de detalhes internos no endpoint de health.
+- Proteger endpoints de ingestão e operação com chaves de API distintas para reduzir exposição indevida de payloads e comandos operacionais.
 - Preparar separação de camadas para reduzir acoplamento e facilitar validação futura de entrada, autorização e rastreabilidade.

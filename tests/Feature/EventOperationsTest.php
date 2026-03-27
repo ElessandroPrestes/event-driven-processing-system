@@ -12,6 +12,8 @@ use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
+    configureEventPipelineApiKeys();
+
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
     $this->history = new InMemoryEventHistoryRepository;
@@ -25,7 +27,7 @@ it('retries a publish_failed event through the api', function (): void {
     $this->publisher->shouldFail = true;
 
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-manual-retry-001'])
+        ->withHeaders(eventIngestHeaders('evt-manual-retry-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'notification.requested',
             'payload' => [
@@ -37,7 +39,8 @@ it('retries a publish_failed event through the api', function (): void {
 
     $this->publisher->shouldFail = false;
 
-    $this->postJson("/api/v1/events/{$eventId}/retry")
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson("/api/v1/events/{$eventId}/retry")
         ->assertAccepted()
         ->assertJsonPath('data.id', $eventId)
         ->assertJsonPath('data.status', 'queued')
@@ -54,7 +57,7 @@ it('retries a processing_failed event through the api', function (): void {
     );
 
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-manual-retry-002'])
+        ->withHeaders(eventIngestHeaders('evt-manual-retry-002'))
         ->postJson('/api/v1/events', [
             'event_name' => 'invoice.generated',
             'payload' => [
@@ -66,7 +69,8 @@ it('retries a processing_failed event through the api', function (): void {
 
     app(ProcessQueuedEventAction::class)->handle($eventId, 1);
 
-    $this->postJson("/api/v1/events/{$eventId}/retry")
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson("/api/v1/events/{$eventId}/retry")
         ->assertAccepted()
         ->assertJsonPath('data.id', $eventId)
         ->assertJsonPath('data.status', 'queued');
@@ -77,7 +81,7 @@ it('retries a processing_failed event through the api', function (): void {
 
 it('rejects retry when the event is not in a retryable status', function (): void {
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-manual-retry-003'])
+        ->withHeaders(eventIngestHeaders('evt-manual-retry-003'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -87,7 +91,8 @@ it('rejects retry when the event is not in a retryable status', function (): voi
         ->assertAccepted()
         ->json('data.id');
 
-    $this->postJson("/api/v1/events/{$eventId}/retry")
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson("/api/v1/events/{$eventId}/retry")
         ->assertConflict()
         ->assertJsonPath('message', 'O evento informado nao pode ser reenfileirado no estado atual.')
         ->assertJsonPath('data.id', $eventId)
@@ -96,7 +101,7 @@ it('rejects retry when the event is not in a retryable status', function (): voi
 
 it('returns an operational summary for the event pipeline', function (): void {
     $processedEventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-summary-001'])
+        ->withHeaders(eventIngestHeaders('evt-summary-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -111,7 +116,7 @@ it('returns an operational summary for the event pipeline', function (): void {
     $this->publisher->shouldFail = true;
 
     $this
-        ->withHeaders(['Idempotency-Key' => 'evt-summary-002'])
+        ->withHeaders(eventIngestHeaders('evt-summary-002'))
         ->postJson('/api/v1/events', [
             'event_name' => 'payment.received',
             'payload' => [
@@ -123,7 +128,7 @@ it('returns an operational summary for the event pipeline', function (): void {
     $this->publisher->shouldFail = false;
 
     $this
-        ->withHeaders(['Idempotency-Key' => 'evt-summary-003'])
+        ->withHeaders(eventIngestHeaders('evt-summary-003'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -132,7 +137,8 @@ it('returns an operational summary for the event pipeline', function (): void {
         ])
         ->assertAccepted();
 
-    $this->getJson('/api/v1/events/summary')
+    $this->withHeaders(eventOperationsHeaders())
+        ->getJson('/api/v1/events/summary')
         ->assertOk()
         ->assertJsonPath('data.total', 3)
         ->assertJsonPath('data.pending', 1)
@@ -142,7 +148,8 @@ it('returns an operational summary for the event pipeline', function (): void {
         ->assertJsonPath('data.by_status.publish_failed', 1)
         ->assertJsonPath('data.by_status.queued', 1);
 
-    $this->getJson('/api/v1/events/summary?event_name=user.created')
+    $this->withHeaders(eventOperationsHeaders())
+        ->getJson('/api/v1/events/summary?event_name=user.created')
         ->assertOk()
         ->assertJsonPath('data.total', 2)
         ->assertJsonPath('data.by_status.processed', 1)

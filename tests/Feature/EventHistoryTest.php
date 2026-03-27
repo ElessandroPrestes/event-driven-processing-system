@@ -11,6 +11,8 @@ use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
+    configureEventPipelineApiKeys();
+
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
     $this->history = new InMemoryEventHistoryRepository;
@@ -22,7 +24,7 @@ beforeEach(function (): void {
 
 it('records the lifecycle history of a successfully processed event', function (): void {
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-history-001'])
+        ->withHeaders(eventIngestHeaders('evt-history-001'))
         ->postJson('/api/v1/events', [
             'event_name' => 'user.created',
             'payload' => [
@@ -34,7 +36,8 @@ it('records the lifecycle history of a successfully processed event', function (
 
     app(ProcessQueuedEventAction::class)->handle($eventId, 3);
 
-    $this->getJson("/api/v1/events/{$eventId}/history")
+    $this->withHeaders(eventOperationsHeaders())
+        ->getJson("/api/v1/events/{$eventId}/history")
         ->assertOk()
         ->assertJsonPath('meta.count', 4)
         ->assertJsonPath('data.0.action', 'received')
@@ -56,7 +59,7 @@ it('records manual retry attempts in the event history', function (): void {
     );
 
     $eventId = $this
-        ->withHeaders(['Idempotency-Key' => 'evt-history-002'])
+        ->withHeaders(eventIngestHeaders('evt-history-002'))
         ->postJson('/api/v1/events', [
             'event_name' => 'invoice.generated',
             'payload' => [
@@ -68,10 +71,13 @@ it('records manual retry attempts in the event history', function (): void {
 
     app(ProcessQueuedEventAction::class)->handle($eventId, 1);
 
-    $this->postJson("/api/v1/events/{$eventId}/retry")
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson("/api/v1/events/{$eventId}/retry")
         ->assertAccepted();
 
-    $response = $this->getJson("/api/v1/events/{$eventId}/history");
+    $response = $this
+        ->withHeaders(eventOperationsHeaders())
+        ->getJson("/api/v1/events/{$eventId}/history");
 
     $response->assertOk()
         ->assertJsonPath('meta.count', 6)

@@ -4,6 +4,7 @@ use App\Application\Events\Exceptions\EventPublicationException;
 use App\Application\Events\Exceptions\EventRetryDispatchException;
 use App\Application\Events\Exceptions\EventRetryNotAllowedException;
 use App\Application\Events\Exceptions\IdempotencyConflictException;
+use App\Interfaces\Http\Middleware\EnsureEventPipelineApiKey;
 use App\Interfaces\Http\Resources\Api\V1\EventResource;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,7 +20,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'event.pipeline.auth' => EnsureEventPipelineApiKey::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (EventPublicationException $exception, Request $request) {
