@@ -1,5 +1,6 @@
 <?php
 
+use App\Interfaces\Http\Controllers\Api\V1\EventMetricsController;
 use App\Interfaces\Http\Controllers\Api\V1\EventSummaryController;
 use App\Interfaces\Http\Controllers\Api\V1\HealthCheckController;
 use App\Interfaces\Http\Controllers\Api\V1\ListEventHistoryController;
@@ -12,6 +13,10 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->middleware('event.pipeline.trace')->group(function (): void {
     Route::get('/health', HealthCheckController::class)
         ->name('api.v1.health');
+
+    Route::get('/metrics', EventMetricsController::class)
+        ->middleware('event.pipeline.auth:operations')
+        ->name('api.v1.metrics');
 
     Route::post('/events', StoreEventController::class)
         ->middleware('event.pipeline.auth:ingest')
