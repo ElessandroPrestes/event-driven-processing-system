@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.8.0
-  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave, correlacao por trace_id e exportacao de metricas.
+  version: 0.9.0
+  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave, correlacao por trace_id, exportacao de metricas e operacao da DLQ.
 servers:
   - url: http://localhost:8080
 paths:
@@ -104,6 +104,52 @@ paths:
           description: Resumo operacional calculado
         '401':
           description: Chave de API invalida
+  /api/v1/quarantine:
+    get:
+      summary: Lista uma amostra da dead-letter queue operacional
+      security:
+        - OperationsApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Snapshot da quarentena
+        '401':
+          description: Chave de API invalida
+  /api/v1/quarantine/replay:
+    post:
+      summary: Republica mensagens da dead-letter queue para a fila principal
+      security:
+        - OperationsApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  default: 1
+      responses:
+        '202':
+          description: Replay da quarentena executado
+        '401':
+          description: Chave de API invalida
+        '503':
+          description: Falha ao reenfileirar mensagens da quarentena
   /api/v1/events/{id}:
     get:
       summary: Consulta um evento recebido pelo identificador

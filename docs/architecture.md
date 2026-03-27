@@ -20,6 +20,7 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - Exportacao de metricas operacionais em formato Prometheus via endpoint autenticado para integracao com monitoramento externo.
 - Retry automatico com atraso progressivo em fila dedicada, desacoplando falhas transitórias do consumo imediato e reduzindo loops agressivos de reprocessamento.
 - Topologia RabbitMQ com dead-letter exchange e dead-letter queue para quarentena de mensagens invalidas, órfãs ou com falha definitiva de processamento.
+- API operacional autenticada para inspecao e replay da dead-letter queue, cobrindo tanto eventos persistidos quanto mensagens órfãs ou inválidas.
 
 ## Segurança e OWASP considerados
 - Não expor segredos em código; variáveis sensíveis permanecem em ambiente.

@@ -34,9 +34,11 @@ Serviços expostos:
 - Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
 - Resumo operacional: `GET http://localhost:8080/api/v1/events/summary`
 - Consulta de eventos: `GET http://localhost:8080/api/v1/events`
+- Consulta da quarentena: `GET http://localhost:8080/api/v1/quarantine`
 - Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
 - Historico do evento: `GET http://localhost:8080/api/v1/events/{id}/history`
 - Reenfileiramento manual: `POST http://localhost:8080/api/v1/events/{id}/retry`
+- Replay da quarentena: `POST http://localhost:8080/api/v1/quarantine/replay`
 - Health nativo do Laravel: `http://localhost:8080/up`
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
@@ -57,6 +59,8 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 - mensagens inválidas, órfãs ou com falha definitiva de processamento são encaminhadas para a fila de dead-letter `eventflow.processing.dead`
 - a topologia de retry pode ser customizada com `RABBITMQ_RETRY_EXCHANGE`, `RABBITMQ_RETRY_QUEUE`, `RABBITMQ_RETRY_ROUTING_KEY` e `RABBITMQ_RETRY_RETURN_ROUTING_KEY`
 - a topologia de dead-letter pode ser customizada com `RABBITMQ_DEAD_LETTER_EXCHANGE`, `RABBITMQ_DEAD_LETTER_QUEUE` e `RABBITMQ_DEAD_LETTER_ROUTING_KEY`
+- a API operacional permite inspecionar e reenfileirar a DLQ sem depender do painel do RabbitMQ Management
+- a inspecao da quarentena faz um peek por AMQP com requeue e pode alterar a ordem relativa das mensagens na DLQ
 
 ## Autenticacao da API
 - ingestao de eventos: enviar `X-Ingest-Api-Key` com o valor configurado em `EVENT_INGEST_API_KEY`
@@ -129,5 +133,23 @@ curl --request GET \
   --url http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/history
 ```
 
+## Exemplo de inspecao da quarentena
+```bash
+curl --request GET \
+  --header 'X-Operations-Api-Key: change-me-operations' \
+  --url 'http://localhost:8080/api/v1/quarantine?limit=10'
+```
+
+## Exemplo de replay da quarentena
+```bash
+curl --request POST \
+  --header 'Content-Type: application/json' \
+  --header 'X-Operations-Api-Key: change-me-operations' \
+  --url http://localhost:8080/api/v1/quarantine/replay \
+  --data '{
+    "limit": 1
+  }'
+```
+
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo e quarentena de mensagens terminais via dead-letter queue. Evolucoes futuras incluem endpoints operacionais para inspeção e replay da quarentena.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.

@@ -5,6 +5,8 @@ use App\Interfaces\Http\Controllers\Api\V1\EventSummaryController;
 use App\Interfaces\Http\Controllers\Api\V1\HealthCheckController;
 use App\Interfaces\Http\Controllers\Api\V1\ListEventHistoryController;
 use App\Interfaces\Http\Controllers\Api\V1\ListEventsController;
+use App\Interfaces\Http\Controllers\Api\V1\ListQuarantinedMessagesController;
+use App\Interfaces\Http\Controllers\Api\V1\ReplayQuarantinedMessagesController;
 use App\Interfaces\Http\Controllers\Api\V1\RetryEventController;
 use App\Interfaces\Http\Controllers\Api\V1\ShowEventController;
 use App\Interfaces\Http\Controllers\Api\V1\StoreEventController;
@@ -29,6 +31,14 @@ Route::prefix('v1')->middleware('event.pipeline.trace')->group(function (): void
     Route::get('/events', ListEventsController::class)
         ->middleware('event.pipeline.auth:operations')
         ->name('api.v1.events.index');
+
+    Route::get('/quarantine', ListQuarantinedMessagesController::class)
+        ->middleware('event.pipeline.auth:operations')
+        ->name('api.v1.quarantine.index');
+
+    Route::post('/quarantine/replay', ReplayQuarantinedMessagesController::class)
+        ->middleware('event.pipeline.auth:operations')
+        ->name('api.v1.quarantine.replay');
 
     Route::get('/events/{eventId}/history', ListEventHistoryController::class)
         ->whereUuid('eventId')

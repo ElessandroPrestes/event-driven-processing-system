@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Application\Events\Contracts\EventQuarantineManager;
 use App\Application\Events\Contracts\EventRetryScheduler;
 use App\Application\Events\Processors\InvoiceGeneratedProcessor;
 use App\Application\Events\Processors\NotificationRequestedProcessor;
@@ -15,6 +16,7 @@ use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqDelayedRetryScheduler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqEventPublisher;
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqEventQuarantine;
 use App\Infrastructure\Persistence\Repositories\EloquentEventHistoryRepository;
 use App\Infrastructure\Persistence\Repositories\EloquentEventRepository;
 use Illuminate\Support\ServiceProvider;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(EventPublisher::class, RabbitMqEventPublisher::class);
         $this->app->bind(EventRetryScheduler::class, RabbitMqDelayedRetryScheduler::class);
+        $this->app->bind(EventQuarantineManager::class, RabbitMqEventQuarantine::class);
         $this->app->bind(EventRepository::class, EloquentEventRepository::class);
         $this->app->bind(EventHistoryRepository::class, EloquentEventHistoryRepository::class);
         $this->app->singleton(EventHistoryRecorder::class, EventHistoryRecorder::class);
