@@ -74,18 +74,28 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
         }
     }
 
-    public function replay(int $limit): QuarantineReplayResultData
+    /**
+     * @param  array<int, string>  $messageIds
+     */
+    public function replay(int $limit, array $messageIds = []): QuarantineReplayResultData
     {
         $limit = max(1, min($limit, self::DEFAULT_MAX_LIMIT));
+        $targetMessageIds = $this->normalizeTargetMessageIds($messageIds);
+        /** @var array<string, bool> $pendingMessageIds */
+        $pendingMessageIds = array_fill_keys($targetMessageIds, true);
+        $replayed = [];
+        $deferredMessages = [];
+        $stoppedReason = null;
         $connection = $this->connections->make();
         $channel = $connection->channel();
 
         try {
             $queue = $this->prepareDeadLetterQueue($channel);
-            $replayed = [];
-            $stoppedReason = null;
+            $iterations = $targetMessageIds === []
+                ? min($limit, $queue['depth'])
+                : $queue['depth'];
 
-            for ($index = 0; $index < min($limit, $queue['depth']); $index++) {
+            for ($index = 0; $index < $iterations; $index++) {
                 $message = $channel->basic_get($queue['name'], false);
 
                 if (! $message instanceof AMQPMessage) {
@@ -94,31 +104,44 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
 
                 $snapshot = $this->snapshotMessage($message);
 
+                if ($this->shouldDeferMessage($pendingMessageIds, $snapshot->messageId)) {
+                    $deferredMessages[] = $message;
+
+                    continue;
+                }
+
                 try {
-                    $replayed[] = $this->replayMessage($channel, $snapshot);
+                    $replayedMessage = $this->replayMessage($channel, $snapshot);
                     $message->ack();
+                    $replayed[] = $replayedMessage;
+
+                    if ($replayedMessage->messageId !== null) {
+                        unset($pendingMessageIds[$replayedMessage->messageId]);
+                    }
+
+                    if ($targetMessageIds !== [] && $pendingMessageIds === []) {
+                        break;
+                    }
                 } catch (Throwable $exception) {
                     $message->nack(true);
                     $stoppedReason = $exception->getMessage();
-
-                    Log::error('event.quarantine_replay_failed', [
-                        'queue' => $queue['name'],
-                        'message_id' => $snapshot->messageId,
-                        'event_id' => $snapshot->eventId,
-                        'event_name' => $snapshot->eventName,
-                        'error' => $exception->getMessage(),
-                    ]);
+                    $this->logReplayFailure($queue['name'], $snapshot, $exception);
 
                     break;
                 }
             }
 
+            $this->requeueMessages($deferredMessages);
+
             $remainingDepth = $this->currentQueueDepth($channel, $queue['name']);
+            $missingMessageIds = array_keys($pendingMessageIds);
 
             Log::info('event.quarantine_replayed', [
                 'queue' => $queue['name'],
                 'requested' => $limit,
+                'target_message_ids' => $targetMessageIds,
                 'replayed' => count($replayed),
+                'missing_message_ids' => $missingMessageIds,
                 'remaining_depth' => $remainingDepth,
                 'stopped_reason' => $stoppedReason,
             ]);
@@ -129,6 +152,7 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
                 remainingDepth: $remainingDepth,
                 messages: $replayed,
                 stoppedReason: $stoppedReason,
+                missingMessageIds: $missingMessageIds,
             );
         } finally {
             $channel->close();
@@ -160,6 +184,58 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
         $declared = $channel->queue_declare($queue, false, $durable, false, false);
 
         return isset($declared[1]) ? (int) $declared[1] : 0;
+    }
+
+    /**
+     * @param  array<int, AMQPMessage>  $messages
+     */
+    private function requeueMessages(array $messages): void
+    {
+        foreach (array_reverse($messages) as $message) {
+            $message->nack(true);
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $messageIds
+     * @return array<int, string>
+     */
+    private function normalizeTargetMessageIds(array $messageIds): array
+    {
+        return array_values(array_unique(array_filter(
+            $messageIds,
+            static fn (string $messageId): bool => $messageId !== '',
+        )));
+    }
+
+    /**
+     * @param  array<string, bool>  $pendingMessageIds
+     */
+    private function shouldDeferMessage(array $pendingMessageIds, ?string $messageId): bool
+    {
+        if ($pendingMessageIds === []) {
+            return false;
+        }
+
+        if ($messageId === null) {
+            return true;
+        }
+
+        return ! array_key_exists($messageId, $pendingMessageIds);
+    }
+
+    private function logReplayFailure(
+        string $queue,
+        QuarantinedMessageData $snapshot,
+        Throwable $exception,
+    ): void {
+        Log::error('event.quarantine_replay_failed', [
+            'queue' => $queue,
+            'message_id' => $snapshot->messageId,
+            'event_id' => $snapshot->eventId,
+            'event_name' => $snapshot->eventName,
+            'error' => $exception->getMessage(),
+        ]);
     }
 
     private function replayMessage(AMQPChannel $channel, QuarantinedMessageData $snapshot): QuarantinedMessageData

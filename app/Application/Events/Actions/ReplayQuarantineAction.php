@@ -11,8 +11,11 @@ final class ReplayQuarantineAction
         private readonly EventQuarantineManager $quarantine,
     ) {}
 
-    public function handle(int $limit): QuarantineReplayResultData
+    /**
+     * @param  array<int, string>  $messageIds
+     */
+    public function handle(int $limit, array $messageIds = []): QuarantineReplayResultData
     {
-        return $this->quarantine->replay($limit);
+        return $this->quarantine->replay($limit, $messageIds);
     }
 }

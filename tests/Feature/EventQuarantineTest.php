@@ -74,6 +74,51 @@ it('replays quarantined messages through the api', function (): void {
     expect($this->quarantine->replayedLimit)->toBe(1);
 });
 
+it('replays targeted quarantined messages by message id through the api', function (): void {
+    $this->quarantine->depth = 3;
+    $this->quarantine->replayMessages = [
+        makeQuarantinedMessage(
+            messageId: 'evt-quarantine-replay-010',
+            eventId: 'evt-quarantine-replay-010',
+            eventName: 'payment.received',
+            traceId: 'trace-quarantine-replay-010',
+            persistedEventStatus: EventStatus::QUEUED,
+            replayStrategy: 'stored_event',
+        ),
+        makeQuarantinedMessage(
+            messageId: 'evt-quarantine-replay-011',
+            eventId: 'evt-quarantine-replay-011',
+            eventName: 'notification.requested',
+            traceId: 'trace-quarantine-replay-011',
+            persistedEventStatus: EventStatus::QUEUED,
+            replayStrategy: 'stored_event',
+        ),
+    ];
+
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson('/api/v1/quarantine/replay', [
+            'message_ids' => ['evt-quarantine-replay-011'],
+        ])
+        ->assertAccepted()
+        ->assertJsonPath('data.replayed_count', 1)
+        ->assertJsonPath('data.requested', 1)
+        ->assertJsonPath('data.messages.0.message_id', 'evt-quarantine-replay-011')
+        ->assertJsonPath('data.missing_message_ids', []);
+
+    expect($this->quarantine->replayedLimit)->toBe(1)
+        ->and($this->quarantine->replayedMessageIds)->toBe(['evt-quarantine-replay-011']);
+});
+
+it('validates mutually exclusive replay payloads for quarantine', function (): void {
+    $this->withHeaders(eventOperationsHeaders())
+        ->postJson('/api/v1/quarantine/replay', [
+            'limit' => 1,
+            'message_ids' => ['evt-quarantine-replay-099'],
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['limit', 'message_ids']);
+});
+
 it('returns service unavailable when quarantine replay fails before replaying any message', function (): void {
     $this->quarantine->depth = 4;
     $this->quarantine->replayFailure = 'Falha ao republicar a mensagem da quarentena.';

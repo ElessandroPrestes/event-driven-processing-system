@@ -27,6 +27,16 @@ final class FakeEventQuarantineManager implements EventQuarantineManager
 
     public ?int $replayedLimit = null;
 
+    /**
+     * @var array<int, string>
+     */
+    public array $replayedMessageIds = [];
+
+    /**
+     * @var array<int, string>
+     */
+    public array $missingReplayMessageIds = [];
+
     public function inspect(int $limit): QuarantineInspectionData
     {
         $this->inspectedLimit = $limit;
@@ -38,9 +48,10 @@ final class FakeEventQuarantineManager implements EventQuarantineManager
         );
     }
 
-    public function replay(int $limit): QuarantineReplayResultData
+    public function replay(int $limit, array $messageIds = []): QuarantineReplayResultData
     {
         $this->replayedLimit = $limit;
+        $this->replayedMessageIds = $messageIds;
 
         if ($this->replayFailure !== null) {
             return new QuarantineReplayResultData(
@@ -52,15 +63,24 @@ final class FakeEventQuarantineManager implements EventQuarantineManager
             );
         }
 
-        $messages = $this->replayMessages !== []
-            ? array_slice($this->replayMessages, 0, $limit)
-            : array_slice($this->messages, 0, $limit);
+        $availableMessages = $this->replayMessages !== [] ? $this->replayMessages : $this->messages;
+
+        if ($messageIds !== []) {
+            $messages = array_values(array_filter(
+                $availableMessages,
+                static fn (QuarantinedMessageData $message): bool => $message->messageId !== null
+                    && in_array($message->messageId, $messageIds, true),
+            ));
+        } else {
+            $messages = array_slice($availableMessages, 0, $limit);
+        }
 
         return new QuarantineReplayResultData(
             requested: $limit,
             replayedCount: count($messages),
             remainingDepth: max(0, ($this->depth === 0 ? count($this->messages) : $this->depth) - count($messages)),
             messages: $messages,
+            missingMessageIds: $this->missingReplayMessageIds,
         );
     }
 }

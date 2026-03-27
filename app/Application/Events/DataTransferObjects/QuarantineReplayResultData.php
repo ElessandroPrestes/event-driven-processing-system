@@ -6,6 +6,7 @@ final readonly class QuarantineReplayResultData
 {
     /**
      * @param  array<int, QuarantinedMessageData>  $messages
+     * @param  array<int, string>  $missingMessageIds
      */
     public function __construct(
         public int $requested,
@@ -13,6 +14,7 @@ final readonly class QuarantineReplayResultData
         public int $remainingDepth,
         public array $messages,
         public ?string $stoppedReason = null,
+        public array $missingMessageIds = [],
     ) {}
 
     public function failed(): bool

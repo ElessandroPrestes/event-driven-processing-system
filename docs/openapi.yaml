@@ -180,9 +180,44 @@ paths:
                   minimum: 1
                   maximum: 50
                   default: 1
+                message_ids:
+                  type: array
+                  maxItems: 50
+                  items:
+                    type: string
+              description: Informe `limit` para replay em lote ou `message_ids` para replay direcionado.
       responses:
         '202':
           description: Replay da quarentena executado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      replayed_count:
+                        type: integer
+                        minimum: 0
+                      requested:
+                        type: integer
+                        minimum: 1
+                      remaining_depth:
+                        type: integer
+                        minimum: 0
+                      stopped_reason:
+                        type: string
+                        nullable: true
+                      missing_message_ids:
+                        type: array
+                        items:
+                          type: string
+                      messages:
+                        type: array
+                        items:
+                          type: object
+                          additionalProperties: true
         '401':
           description: Chave de API invalida
         '429':

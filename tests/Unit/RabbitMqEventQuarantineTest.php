@@ -221,6 +221,141 @@ it('replays raw quarantined messages when no retryable stored event exists', fun
         ->and($result->remainingDepth)->toBe(0);
 });
 
+it('replays only the targeted quarantined message and requeues the others', function (): void {
+    config()->set('event_pipeline.rabbitmq.dead_letter_queue', 'eventflow.processing.dead');
+    config()->set('event_pipeline.rabbitmq.durable', true);
+    config()->set('event_pipeline.rabbitmq.exchange', 'eventflow.events');
+
+    $events = new InMemoryEventRepository;
+    $history = new EventHistoryRecorder(new InMemoryEventHistoryRepository);
+    $channel = Mockery::mock(AMQPChannel::class)->shouldIgnoreMissing();
+    $skippedMessage = brokerMessage(
+        body: '{"skip":true}',
+        channel: $channel,
+        deliveryTag: 1,
+        routingKey: 'eventflow.processing.dead',
+        properties: [
+            'message_id' => 'quarantine-skip-001',
+            'application_headers' => new AMQPTable([
+                'trace_id' => 'trace-quarantine-skip-001',
+                'x-death' => [
+                    [
+                        'routing-keys' => ['notification.requested'],
+                        'reason' => 'rejected',
+                    ],
+                ],
+            ]),
+        ],
+    );
+    $targetMessage = brokerMessage(
+        body: '{"target":true}',
+        channel: $channel,
+        deliveryTag: 2,
+        routingKey: 'eventflow.processing.dead',
+        properties: [
+            'message_id' => 'quarantine-target-001',
+            'application_headers' => new AMQPTable([
+                'trace_id' => 'trace-quarantine-target-001',
+                'x-death' => [
+                    [
+                        'routing-keys' => ['notification.requested'],
+                        'reason' => 'rejected',
+                    ],
+                ],
+            ]),
+        ],
+    );
+
+    $manager = makeRabbitMqEventQuarantine(
+        events: $events,
+        history: $history,
+        configureChannel: function (AMQPChannel $channel) use ($skippedMessage, $targetMessage): void {
+            $channel->shouldReceive('queue_declare')
+                ->times(3)
+                ->with('eventflow.processing.dead', false, true, false, false)
+                ->andReturn([null, 0], [null, 2], [null, 1]);
+            $channel->shouldReceive('basic_get')
+                ->once()
+                ->with('eventflow.processing.dead', false)
+                ->andReturn($skippedMessage);
+            $channel->shouldReceive('basic_get')
+                ->once()
+                ->with('eventflow.processing.dead', false)
+                ->andReturn($targetMessage);
+            $channel->shouldReceive('basic_publish')
+                ->once()
+                ->withArgs(function (AMQPMessage $replayedMessage, string $exchange, string $routingKey): bool {
+                    return $exchange === 'eventflow.events'
+                        && $routingKey === 'notification.requested'
+                        && $replayedMessage->get('message_id') === 'quarantine-target-001';
+                });
+            $channel->shouldReceive('basic_ack')->once()->with(2, false)->ordered();
+            $channel->shouldReceive('basic_nack')->once()->with(1, false, true)->ordered();
+        },
+        channel: $channel,
+    );
+
+    $result = $manager->replay(1, ['quarantine-target-001']);
+
+    expect($result->requested)->toBe(1)
+        ->and($result->replayedCount)->toBe(1)
+        ->and($result->remainingDepth)->toBe(1)
+        ->and($result->messages[0]->messageId)->toBe('quarantine-target-001')
+        ->and($result->missingMessageIds)->toBe([]);
+});
+
+it('reports targeted quarantine messages that were not found', function (): void {
+    config()->set('event_pipeline.rabbitmq.dead_letter_queue', 'eventflow.processing.dead');
+    config()->set('event_pipeline.rabbitmq.durable', true);
+
+    $events = new InMemoryEventRepository;
+    $history = new EventHistoryRecorder(new InMemoryEventHistoryRepository);
+    $channel = Mockery::mock(AMQPChannel::class)->shouldIgnoreMissing();
+    $message = brokerMessage(
+        body: '{"skip":true}',
+        channel: $channel,
+        deliveryTag: 1,
+        routingKey: 'eventflow.processing.dead',
+        properties: [
+            'message_id' => 'quarantine-other-001',
+            'application_headers' => new AMQPTable([
+                'trace_id' => 'trace-quarantine-other-001',
+                'x-death' => [
+                    [
+                        'routing-keys' => ['notification.requested'],
+                        'reason' => 'rejected',
+                    ],
+                ],
+            ]),
+        ],
+    );
+
+    $manager = makeRabbitMqEventQuarantine(
+        events: $events,
+        history: $history,
+        configureChannel: function (AMQPChannel $channel) use ($message): void {
+            $channel->shouldReceive('queue_declare')
+                ->times(3)
+                ->with('eventflow.processing.dead', false, true, false, false)
+                ->andReturn([null, 0], [null, 1], [null, 1]);
+            $channel->shouldReceive('basic_get')
+                ->once()
+                ->with('eventflow.processing.dead', false)
+                ->andReturn($message);
+            $channel->shouldReceive('basic_nack')->once()->with(1, false, true);
+        },
+        channel: $channel,
+    );
+
+    $result = $manager->replay(1, ['quarantine-missing-001']);
+
+    expect($result->requested)->toBe(1)
+        ->and($result->replayedCount)->toBe(0)
+        ->and($result->remainingDepth)->toBe(1)
+        ->and($result->stoppedReason)->toBeNull()
+        ->and($result->missingMessageIds)->toBe(['quarantine-missing-001']);
+});
+
 it('stops the replay batch when republication fails and keeps the message quarantined', function (): void {
     config()->set('event_pipeline.rabbitmq.dead_letter_queue', 'eventflow.processing.dead');
     config()->set('event_pipeline.rabbitmq.durable', true);

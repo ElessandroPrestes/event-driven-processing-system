@@ -23,7 +23,7 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - Historico de transicoes dos eventos tambem paginado na API para evitar respostas grandes em eventos com alto numero de tentativas e acoes operacionais.
 - Retry automatico com atraso progressivo em fila dedicada, desacoplando falhas transitórias do consumo imediato e reduzindo loops agressivos de reprocessamento.
 - Topologia RabbitMQ com dead-letter exchange e dead-letter queue para quarentena de mensagens invalidas, órfãs ou com falha definitiva de processamento.
-- API operacional autenticada para inspecao e replay da dead-letter queue, cobrindo tanto eventos persistidos quanto mensagens órfãs ou inválidas.
+- API operacional autenticada para inspecao e replay da dead-letter queue, cobrindo tanto eventos persistidos quanto mensagens órfãs ou inválidas, inclusive com replay direcionado por `message_id`.
 
 ## Segurança e OWASP considerados
 - Não expor segredos em código; variáveis sensíveis permanecem em ambiente.

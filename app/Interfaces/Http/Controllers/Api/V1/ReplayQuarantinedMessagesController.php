@@ -14,7 +14,7 @@ final class ReplayQuarantinedMessagesController extends Controller
 {
     public function __invoke(ReplayQuarantinedMessagesRequest $request, ReplayQuarantineAction $action): JsonResponse
     {
-        $result = $action->handle($request->limit());
+        $result = $action->handle($request->requestedReplayLimit(), $request->messageIds());
         $status = $result->failed() ? Response::HTTP_SERVICE_UNAVAILABLE : Response::HTTP_ACCEPTED;
 
         return response()->json([
@@ -24,6 +24,7 @@ final class ReplayQuarantinedMessagesController extends Controller
                 'requested' => $result->requested,
                 'remaining_depth' => $result->remainingDepth,
                 'stopped_reason' => $result->stoppedReason,
+                'missing_message_ids' => $result->missingMessageIds,
             ],
         ], $status);
     }

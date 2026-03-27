@@ -60,6 +60,7 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 - a topologia de retry pode ser customizada com `RABBITMQ_RETRY_EXCHANGE`, `RABBITMQ_RETRY_QUEUE`, `RABBITMQ_RETRY_ROUTING_KEY` e `RABBITMQ_RETRY_RETURN_ROUTING_KEY`
 - a topologia de dead-letter pode ser customizada com `RABBITMQ_DEAD_LETTER_EXCHANGE`, `RABBITMQ_DEAD_LETTER_QUEUE` e `RABBITMQ_DEAD_LETTER_ROUTING_KEY`
 - a API operacional permite inspecionar e reenfileirar a DLQ sem depender do painel do RabbitMQ Management
+- o replay da quarentena pode ser feito em lote ou de forma direcionada por `message_id`
 - a inspecao da quarentena faz um peek por AMQP com requeue e pode alterar a ordem relativa das mensagens na DLQ
 
 ## Autenticacao da API
@@ -166,6 +167,17 @@ curl --request POST \
   --url http://localhost:8080/api/v1/quarantine/replay \
   --data '{
     "limit": 1
+  }'
+```
+
+## Exemplo de replay direcionado da quarentena
+```bash
+curl --request POST \
+  --header 'Content-Type: application/json' \
+  --header 'X-Operations-Api-Key: change-me-operations' \
+  --url http://localhost:8080/api/v1/quarantine/replay \
+  --data '{
+    "message_ids": ["evt-quarantine-replay-001"]
   }'
 ```
 

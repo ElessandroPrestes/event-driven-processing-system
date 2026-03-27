@@ -9,5 +9,8 @@ interface EventQuarantineManager
 {
     public function inspect(int $limit): QuarantineInspectionData;
 
-    public function replay(int $limit): QuarantineReplayResultData;
+    /**
+     * @param  array<int, string>  $messageIds
+     */
+    public function replay(int $limit, array $messageIds = []): QuarantineReplayResultData;
 }
