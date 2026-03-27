@@ -37,7 +37,7 @@ it('processes a queued event and stores the processing result', function (): voi
 
     $result = app(ProcessQueuedEventAction::class)->handle($eventId, 3);
 
-    expect($result->shouldRequeue)->toBeFalse()
+    expect($result->shouldRetry)->toBeFalse()
         ->and($result->skipped)->toBeFalse()
         ->and($result->event?->status)->toBe(EventStatus::PROCESSED)
         ->and($result->event?->processingAttempts)->toBe(1)
@@ -66,7 +66,7 @@ it('requeues the event when processing fails before reaching the retry limit', f
 
     $result = app(ProcessQueuedEventAction::class)->handle($eventId, 3);
 
-    expect($result->shouldRequeue)->toBeTrue()
+    expect($result->shouldRetry)->toBeTrue()
         ->and($result->event?->status)->toBe(EventStatus::QUEUED)
         ->and($result->event?->processingAttempts)->toBe(1)
         ->and($result->event?->failureReason)->toBe('Falha transitória.');
@@ -92,7 +92,7 @@ it('marks the event as processing_failed after reaching the retry limit', functi
     app(ProcessQueuedEventAction::class)->handle($eventId, 2);
     $result = app(ProcessQueuedEventAction::class)->handle($eventId, 2);
 
-    expect($result->shouldRequeue)->toBeFalse()
+    expect($result->shouldRetry)->toBeFalse()
         ->and($result->event?->status)->toBe(EventStatus::PROCESSING_FAILED)
         ->and($result->event?->processingAttempts)->toBe(2)
         ->and($result->event?->failureReason)->toBe('Falha definitiva.');

@@ -29,7 +29,7 @@ final class ProcessQueuedEventAction
                 'reason' => 'not_found',
             ]);
 
-            return ProcessEventResult::skipped();
+            return ProcessEventResult::skipped(ProcessEventResult::SKIP_REASON_NOT_FOUND);
         }
 
         if ($event->traceId !== null) {
@@ -46,7 +46,7 @@ final class ProcessQueuedEventAction
                     'status' => $event->status->value,
                 ]);
 
-                return ProcessEventResult::skipped();
+                return ProcessEventResult::skipped(ProcessEventResult::SKIP_REASON_TERMINAL_STATUS);
             }
 
             $processingEvent = $this->events->markAsProcessing($event->id, CarbonImmutable::now());

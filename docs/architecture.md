@@ -18,6 +18,8 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - Pest, Pint e PHPStan/Larastan como baseline de qualidade.
 - Logs estruturados em JSON direcionados para `stdout`, favorecendo observabilidade em containers.
 - Exportacao de metricas operacionais em formato Prometheus via endpoint autenticado para integracao com monitoramento externo.
+- Retry automatico com atraso progressivo em fila dedicada, desacoplando falhas transitórias do consumo imediato e reduzindo loops agressivos de reprocessamento.
+- Topologia RabbitMQ com dead-letter exchange e dead-letter queue para quarentena de mensagens invalidas, órfãs ou com falha definitiva de processamento.
 
 ## Segurança e OWASP considerados
 - Não expor segredos em código; variáveis sensíveis permanecem em ambiente.

@@ -51,6 +51,13 @@ Na primeira subida o container da aplicação:
 
 O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fila RabbitMQ com o comando `php artisan events:consume`.
 
+## Resiliencia do consumo
+- falhas transitórias de processamento passam por retry automático com atraso progressivo até `EVENT_CONSUMER_MAX_ATTEMPTS`
+- o atraso progressivo pode ser ajustado com `EVENT_CONSUMER_RETRY_BASE_DELAY_MS`, `EVENT_CONSUMER_RETRY_MULTIPLIER` e `EVENT_CONSUMER_RETRY_MAX_DELAY_MS`
+- mensagens inválidas, órfãs ou com falha definitiva de processamento são encaminhadas para a fila de dead-letter `eventflow.processing.dead`
+- a topologia de retry pode ser customizada com `RABBITMQ_RETRY_EXCHANGE`, `RABBITMQ_RETRY_QUEUE`, `RABBITMQ_RETRY_ROUTING_KEY` e `RABBITMQ_RETRY_RETURN_ROUTING_KEY`
+- a topologia de dead-letter pode ser customizada com `RABBITMQ_DEAD_LETTER_EXCHANGE`, `RABBITMQ_DEAD_LETTER_QUEUE` e `RABBITMQ_DEAD_LETTER_ROUTING_KEY`
+
 ## Autenticacao da API
 - ingestao de eventos: enviar `X-Ingest-Api-Key` com o valor configurado em `EVENT_INGEST_API_KEY`
 - operacao e consultas: enviar `X-Operations-Api-Key` com o valor configurado em `EVENT_OPERATIONS_API_KEY`
@@ -123,4 +130,4 @@ curl --request GET \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id` e exportacao de metricas operacionais em formato Prometheus. Evolucoes futuras incluem politicas de resiliencia ainda mais refinadas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo e quarentena de mensagens terminais via dead-letter queue. Evolucoes futuras incluem endpoints operacionais para inspeção e replay da quarentena.

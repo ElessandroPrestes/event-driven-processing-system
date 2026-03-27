@@ -2,19 +2,19 @@
 
 namespace App\Infrastructure\Messaging\RabbitMq;
 
-use App\Domain\Events\Contracts\EventPublisher;
+use App\Application\Events\Contracts\EventRetryScheduler;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
-final class RabbitMqEventPublisher implements EventPublisher
+final class RabbitMqDelayedRetryScheduler implements EventRetryScheduler
 {
     public function __construct(
         private readonly RabbitMqTopologyManager $topology,
     ) {}
 
-    public function publish(StoredEventData $event): void
+    public function schedule(StoredEventData $event, int $delayInMilliseconds): void
     {
         $connection = new AMQPStreamConnection(
             host: (string) config('event_pipeline.rabbitmq.host'),
@@ -47,14 +47,17 @@ final class RabbitMqEventPublisher implements EventPublisher
                         'message_id' => $event->id,
                         'type' => $event->eventName,
                         'timestamp' => time(),
+                        'expiration' => (string) $delayInMilliseconds,
                         'application_headers' => new AMQPTable([
                             'idempotency_key' => $event->idempotencyKey,
                             'trace_id' => $event->traceId,
+                            'retry_delay_ms' => $delayInMilliseconds,
+                            'processing_attempts' => $event->processingAttempts,
                         ]),
                     ],
                 ),
-                exchange: (string) config('event_pipeline.rabbitmq.exchange'),
-                routing_key: $event->eventName,
+                exchange: (string) config('event_pipeline.rabbitmq.retry_exchange'),
+                routing_key: (string) config('event_pipeline.rabbitmq.retry_routing_key'),
             );
         } finally {
             $channel->close();

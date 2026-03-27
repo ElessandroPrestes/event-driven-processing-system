@@ -17,6 +17,15 @@ return [
         'exchange' => env('RABBITMQ_EXCHANGE', 'eventflow.events'),
         'exchange_type' => env('RABBITMQ_EXCHANGE_TYPE', 'topic'),
         'queue' => env('RABBITMQ_QUEUE', 'eventflow.processing'),
+        'retry_exchange' => env('RABBITMQ_RETRY_EXCHANGE', 'eventflow.events.retry'),
+        'retry_exchange_type' => env('RABBITMQ_RETRY_EXCHANGE_TYPE', 'direct'),
+        'retry_queue' => env('RABBITMQ_RETRY_QUEUE', 'eventflow.processing.retry'),
+        'retry_routing_key' => env('RABBITMQ_RETRY_ROUTING_KEY', 'eventflow.processing.retry'),
+        'retry_return_routing_key' => env('RABBITMQ_RETRY_RETURN_ROUTING_KEY', 'eventflow.processing.ready'),
+        'dead_letter_exchange' => env('RABBITMQ_DEAD_LETTER_EXCHANGE', 'eventflow.events.dlx'),
+        'dead_letter_exchange_type' => env('RABBITMQ_DEAD_LETTER_EXCHANGE_TYPE', 'direct'),
+        'dead_letter_queue' => env('RABBITMQ_DEAD_LETTER_QUEUE', 'eventflow.processing.dead'),
+        'dead_letter_routing_key' => env('RABBITMQ_DEAD_LETTER_ROUTING_KEY', 'eventflow.processing.dead'),
         'durable' => (bool) env('RABBITMQ_DURABLE', true),
     ],
 
@@ -42,5 +51,8 @@ return [
     'consumer' => [
         'max_attempts' => (int) env('EVENT_CONSUMER_MAX_ATTEMPTS', 3),
         'idle_timeout' => (int) env('EVENT_CONSUMER_IDLE_TIMEOUT', 5),
+        'retry_base_delay_ms' => (int) env('EVENT_CONSUMER_RETRY_BASE_DELAY_MS', 5000),
+        'retry_multiplier' => (float) env('EVENT_CONSUMER_RETRY_MULTIPLIER', 2.0),
+        'retry_max_delay_ms' => (int) env('EVENT_CONSUMER_RETRY_MAX_DELAY_MS', 60000),
     ],
 ];
