@@ -3,6 +3,7 @@
 namespace App\Domain\Events\Contracts;
 
 use App\Domain\Events\DataTransferObjects\EventHistoryEntryData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventHistoryData;
 use App\Domain\Events\Enums\EventStatus;
 
 interface EventHistoryRepository
@@ -23,4 +24,6 @@ interface EventHistoryRepository
      * @return array<int, EventHistoryEntryData>
      */
     public function listForEvent(string $eventId): array;
+
+    public function paginateForEvent(string $eventId, int $page = 1, int $perPage = 20): PaginatedEventHistoryData;
 }

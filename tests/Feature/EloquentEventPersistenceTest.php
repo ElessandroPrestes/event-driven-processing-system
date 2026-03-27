@@ -4,6 +4,7 @@ use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventHistoryData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\Enums\EventStatus;
 use App\Infrastructure\Persistence\Repositories\EloquentEventHistoryRepository;
@@ -155,6 +156,7 @@ it('stores and lists event history entries through the eloquent history reposito
     );
 
     $entries = $history->listForEvent($event->id);
+    $paginatedEntries = $history->paginateForEvent($event->id, page: 2, perPage: 1);
 
     expect($entries)->toHaveCount(2)
         ->and($entries[0]->action)->toBe('queued')
@@ -168,5 +170,12 @@ it('stores and lists event history entries through the eloquent history reposito
         ->and($entries[1]->toStatus)->toBe(EventStatus::PROCESSED)
         ->and($entries[1]->context)->toMatchArray([
             'result' => 'ok',
-        ]);
+        ])
+        ->and($paginatedEntries)->toBeInstanceOf(PaginatedEventHistoryData::class)
+        ->and($paginatedEntries->currentPage)->toBe(2)
+        ->and($paginatedEntries->perPage)->toBe(1)
+        ->and($paginatedEntries->total)->toBe(2)
+        ->and($paginatedEntries->lastPage)->toBe(2)
+        ->and($paginatedEntries->count())->toBe(1)
+        ->and($paginatedEntries->items[0]->action)->toBe('processed');
 });

@@ -4,9 +4,12 @@ namespace App\Infrastructure\Persistence\Repositories;
 
 use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\DataTransferObjects\EventHistoryEntryData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventHistoryData;
 use App\Domain\Events\Enums\EventStatus;
 use App\Infrastructure\Persistence\Models\EventHistoryRecord;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
 final class EloquentEventHistoryRepository implements EventHistoryRepository
@@ -41,12 +44,52 @@ final class EloquentEventHistoryRepository implements EventHistoryRepository
      */
     public function listForEvent(string $eventId): array
     {
-        return EventHistoryRecord::query()
-            ->where('event_id', $eventId)
-            ->orderBy('created_at')
+        return $this->queryForEvent($eventId)
             ->get()
             ->map(fn (EventHistoryRecord $record): EventHistoryEntryData => $this->toData($record))
             ->all();
+    }
+
+    public function paginateForEvent(string $eventId, int $page = 1, int $perPage = 20): PaginatedEventHistoryData
+    {
+        $page = max($page, 1);
+        $perPage = max($perPage, 1);
+
+        $paginator = $this->queryForEvent($eventId)
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->toPaginatedData($paginator);
+    }
+
+    /**
+     * @return Builder<EventHistoryRecord>
+     */
+    private function queryForEvent(string $eventId): Builder
+    {
+        return EventHistoryRecord::query()
+            ->where('event_id', $eventId)
+            ->orderBy('created_at')
+            ->orderBy('id');
+    }
+
+    /**
+     * @param  LengthAwarePaginator<int, EventHistoryRecord>  $paginator
+     */
+    private function toPaginatedData(LengthAwarePaginator $paginator): PaginatedEventHistoryData
+    {
+        /** @var array<int, EventHistoryRecord> $items */
+        $items = $paginator->items();
+
+        return new PaginatedEventHistoryData(
+            items: array_map(
+                fn (EventHistoryRecord $record): EventHistoryEntryData => $this->toData($record),
+                $items,
+            ),
+            currentPage: $paginator->currentPage(),
+            perPage: $paginator->perPage(),
+            total: $paginator->total(),
+            lastPage: $paginator->lastPage(),
+        );
     }
 
     private function toData(EventHistoryRecord $record): EventHistoryEntryData

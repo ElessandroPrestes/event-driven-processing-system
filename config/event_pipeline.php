@@ -36,6 +36,10 @@ return [
                 'default_per_page' => (int) env('EVENT_API_EVENTS_DEFAULT_PER_PAGE', 20),
                 'max_per_page' => (int) env('EVENT_API_EVENTS_MAX_PER_PAGE', 100),
             ],
+            'event_history' => [
+                'default_per_page' => (int) env('EVENT_API_EVENT_HISTORY_DEFAULT_PER_PAGE', 20),
+                'max_per_page' => (int) env('EVENT_API_EVENT_HISTORY_MAX_PER_PAGE', 100),
+            ],
         ],
     ],
 

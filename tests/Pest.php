@@ -20,6 +20,8 @@ function configureEventPipelineApiKeys(): void
     config()->set('event_pipeline.rate_limits.operations.decay_seconds', 60);
     config()->set('event_pipeline.api.pagination.events.default_per_page', 20);
     config()->set('event_pipeline.api.pagination.events.max_per_page', 100);
+    config()->set('event_pipeline.api.pagination.event_history.default_per_page', 20);
+    config()->set('event_pipeline.api.pagination.event_history.max_per_page', 100);
     config()->set('event_pipeline.observability.trace_header', 'X-Trace-Id');
 }
 
