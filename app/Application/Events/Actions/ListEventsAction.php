@@ -3,7 +3,7 @@
 namespace App\Application\Events\Actions;
 
 use App\Domain\Events\Contracts\EventRepository;
-use App\Domain\Events\DataTransferObjects\StoredEventData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 
 final class ListEventsAction
 {
@@ -13,10 +13,14 @@ final class ListEventsAction
 
     /**
      * @param  array<int, string>  $statuses
-     * @return array<int, StoredEventData>
      */
-    public function handle(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
-    {
-        return $this->events->list($statuses, $eventName, $traceId);
+    public function handle(
+        array $statuses = [],
+        ?string $eventName = null,
+        ?string $traceId = null,
+        int $page = 1,
+        int $perPage = 20,
+    ): PaginatedEventsData {
+        return $this->events->paginate($statuses, $eventName, $traceId, $page, $perPage);
     }
 }

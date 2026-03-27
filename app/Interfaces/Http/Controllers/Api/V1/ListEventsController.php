@@ -13,12 +13,23 @@ final class ListEventsController extends Controller
 {
     public function __invoke(ListEventsRequest $request, ListEventsAction $action): JsonResponse
     {
-        $events = $action->handle($request->statuses(), $request->eventName(), $request->traceId());
+        $events = $action->handle(
+            $request->statuses(),
+            $request->eventName(),
+            $request->traceId(),
+            $request->currentPage(),
+            $request->perPage(),
+        );
 
         return response()->json([
-            'data' => EventResource::collection(Collection::make($events))->resolve($request),
+            'data' => EventResource::collection(Collection::make($events->items))->resolve($request),
             'meta' => [
-                'count' => count($events),
+                'count' => $events->count(),
+                'current_page' => $events->currentPage,
+                'per_page' => $events->perPage,
+                'total' => $events->total,
+                'last_page' => $events->lastPage,
+                'has_more_pages' => $events->hasMorePages(),
             ],
         ]);
     }

@@ -79,6 +79,12 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 - quando o header nao e enviado, a aplicacao gera um `trace_id` automaticamente e o devolve no header de resposta `X-Trace-Id`
 - a listagem de eventos aceita o filtro `trace_id` para localizar todos os registros ligados a uma mesma correlacao
 
+## Paginacao operacional
+- `GET /api/v1/events` usa paginacao com `page` e `per_page`
+- o tamanho padrao da pagina e controlado por `EVENT_API_EVENTS_DEFAULT_PER_PAGE`
+- o teto aceito por requisicao e controlado por `EVENT_API_EVENTS_MAX_PER_PAGE`
+- a resposta inclui `count`, `current_page`, `per_page`, `total`, `last_page` e `has_more_pages`
+
 ## Qualidade
 ```bash
 composer lint
@@ -111,7 +117,7 @@ curl --request POST \
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed&trace_id=trace-user-created-001'
+  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed&trace_id=trace-user-created-001&page=1&per_page=20'
 ```
 
 ## Exemplo de resumo operacional
@@ -161,4 +167,4 @@ curl --request POST \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, rate limit por escopo e IP, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, listagem paginada de eventos, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, rate limit por escopo e IP, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.

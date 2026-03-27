@@ -54,9 +54,36 @@ paths:
           schema:
             type: string
             maxLength: 128
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - in: query
+          name: per_page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
       responses:
         '200':
-          description: Lista de eventos
+          description: Lista paginada de eventos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  meta:
+                    $ref: '#/components/schemas/PaginatedEventsMeta'
         '401':
           description: Chave de API invalida
         '429':
@@ -298,6 +325,33 @@ components:
             retry_after_seconds:
               type: integer
               minimum: 1
+    PaginatedEventsMeta:
+      type: object
+      required:
+        - count
+        - current_page
+        - per_page
+        - total
+        - last_page
+        - has_more_pages
+      properties:
+        count:
+          type: integer
+          minimum: 0
+        current_page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        last_page:
+          type: integer
+          minimum: 1
+        has_more_pages:
+          type: boolean
     StoreEventRequest:
       type: object
       required:

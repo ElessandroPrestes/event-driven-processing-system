@@ -31,6 +31,12 @@ return [
 
     'api' => [
         'idempotency_header' => 'Idempotency-Key',
+        'pagination' => [
+            'events' => [
+                'default_per_page' => (int) env('EVENT_API_EVENTS_DEFAULT_PER_PAGE', 20),
+                'max_per_page' => (int) env('EVENT_API_EVENTS_MAX_PER_PAGE', 100),
+            ],
+        ],
     ],
 
     'auth' => [

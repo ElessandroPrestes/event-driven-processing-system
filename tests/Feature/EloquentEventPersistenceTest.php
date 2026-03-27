@@ -3,6 +3,7 @@
 use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\Enums\EventStatus;
 use App\Infrastructure\Persistence\Repositories\EloquentEventHistoryRepository;
 use App\Infrastructure\Persistence\Repositories\EloquentEventRepository;
@@ -76,6 +77,7 @@ it('persists and transitions events through the eloquent event repository', func
     $failedEvents = $repository->list(statuses: ['publish_failed']);
     $invoiceEvents = $repository->list(eventName: 'invoice.generated');
     $traceEvents = $repository->list(traceId: 'trace-eloquent-002');
+    $paginatedEvents = $repository->paginate(page: 2, perPage: 2);
 
     expect($byId?->status)->toBe(EventStatus::PROCESSED)
         ->and($byId?->processingResult)->toMatchArray([
@@ -94,7 +96,13 @@ it('persists and transitions events through the eloquent event repository', func
         ->and(collect($traceEvents)->pluck('id')->all())->toEqualCanonicalizing([
             $processingFailed->id,
             $publishFailed->id,
-        ]);
+        ])
+        ->and($paginatedEvents)->toBeInstanceOf(PaginatedEventsData::class)
+        ->and($paginatedEvents->currentPage)->toBe(2)
+        ->and($paginatedEvents->perPage)->toBe(2)
+        ->and($paginatedEvents->total)->toBe(3)
+        ->and($paginatedEvents->lastPage)->toBe(2)
+        ->and($paginatedEvents->count())->toBe(1);
 });
 
 it('stores and lists event history entries through the eloquent history repository', function (): void {

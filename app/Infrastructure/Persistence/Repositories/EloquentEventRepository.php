@@ -4,10 +4,14 @@ namespace App\Infrastructure\Persistence\Repositories;
 
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
 use App\Domain\Events\Enums\EventStatus;
 use App\Infrastructure\Persistence\Models\EventRecord;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
 final class EloquentEventRepository implements EventRepository
@@ -29,30 +33,33 @@ final class EloquentEventRepository implements EventRepository
     }
 
     /**
-     * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
     public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
     {
-        $query = EventRecord::query()
-            ->orderByDesc('created_at');
+        /** @var Collection<int, EventRecord> $records */
+        $records = $this->filteredQuery($statuses, $eventName, $traceId)->get();
 
-        if ($statuses !== []) {
-            $query->whereIn('status', $statuses);
-        }
-
-        if ($eventName !== null) {
-            $query->where('event_name', $eventName);
-        }
-
-        if ($traceId !== null) {
-            $query->where('trace_id', $traceId);
-        }
-
-        return $query
-            ->get()
+        return $records
             ->map(fn (EventRecord $record): StoredEventData => $this->toStoredEventData($record))
             ->all();
+    }
+
+    public function paginate(
+        array $statuses = [],
+        ?string $eventName = null,
+        ?string $traceId = null,
+        int $page = 1,
+        int $perPage = 20,
+    ): PaginatedEventsData
+    {
+        $page = max($page, 1);
+        $perPage = max($perPage, 1);
+
+        $paginator = $this->filteredQuery($statuses, $eventName, $traceId)
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        return $this->toPaginatedEventsData($paginator);
     }
 
     public function create(EventPayloadData $payload): StoredEventData
@@ -147,6 +154,50 @@ final class EloquentEventRepository implements EventRepository
         $freshRecord = $record->fresh();
 
         return $this->toStoredEventData($freshRecord);
+    }
+
+    /**
+     * @return Builder<EventRecord>
+     */
+    private function filteredQuery(array $statuses = [], ?string $eventName = null, ?string $traceId = null): Builder
+    {
+        $query = EventRecord::query()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
+
+        if ($statuses !== []) {
+            $query->whereIn('status', $statuses);
+        }
+
+        if ($eventName !== null) {
+            $query->where('event_name', $eventName);
+        }
+
+        if ($traceId !== null) {
+            $query->where('trace_id', $traceId);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  LengthAwarePaginator<int, EventRecord>  $paginator
+     */
+    private function toPaginatedEventsData(LengthAwarePaginator $paginator): PaginatedEventsData
+    {
+        /** @var array<int, EventRecord> $items */
+        $items = $paginator->items();
+
+        return new PaginatedEventsData(
+            items: array_map(
+                fn (EventRecord $record): StoredEventData => $this->toStoredEventData($record),
+                $items,
+            ),
+            currentPage: $paginator->currentPage(),
+            perPage: $paginator->perPage(),
+            total: $paginator->total(),
+            lastPage: $paginator->lastPage(),
+        );
     }
 
     private function toStoredEventData(EventRecord $record): StoredEventData

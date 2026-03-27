@@ -148,6 +148,8 @@ it('lists processed events through the api', function (): void {
 
     $response->assertOk()
         ->assertJsonPath('meta.count', 2)
+        ->assertJsonPath('meta.current_page', 1)
+        ->assertJsonPath('meta.total', 2)
         ->assertJsonCount(2, 'data')
         ->assertJsonPath('data.0.status', 'processed');
 });

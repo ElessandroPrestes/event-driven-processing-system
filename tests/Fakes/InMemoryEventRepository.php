@@ -4,6 +4,7 @@ namespace Tests\Fakes;
 
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
+use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
 use App\Domain\Events\Enums\EventStatus;
 use Carbon\CarbonImmutable;
@@ -34,33 +35,40 @@ final class InMemoryEventRepository implements EventRepository
     }
 
     /**
-     * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
     public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
     {
-        $events = array_values(array_filter(
-            $this->events,
-            function (StoredEventData $event) use ($statuses, $eventName, $traceId): bool {
-                if ($statuses !== [] && ! in_array($event->status->value, $statuses, true)) {
-                    return false;
-                }
-
-                if ($eventName !== null && $event->eventName !== $eventName) {
-                    return false;
-                }
-
-                if ($traceId !== null && $event->traceId !== $traceId) {
-                    return false;
-                }
-
-                return true;
-            },
-        ));
-
-        usort($events, fn (StoredEventData $left, StoredEventData $right): int => $right->createdAt <=> $left->createdAt);
+        $events = $this->filteredEvents($statuses, $eventName, $traceId);
+        $this->sortEvents($events);
 
         return $events;
+    }
+
+    public function paginate(
+        array $statuses = [],
+        ?string $eventName = null,
+        ?string $traceId = null,
+        int $page = 1,
+        int $perPage = 20,
+    ): PaginatedEventsData
+    {
+        $page = max($page, 1);
+        $perPage = max($perPage, 1);
+        $events = $this->filteredEvents($statuses, $eventName, $traceId);
+
+        $this->sortEvents($events);
+
+        $total = count($events);
+        $lastPage = max(1, (int) ceil($total / $perPage));
+
+        return new PaginatedEventsData(
+            items: array_slice($events, ($page - 1) * $perPage, $perPage),
+            currentPage: $page,
+            perPage: $perPage,
+            total: $total,
+            lastPage: $lastPage,
+        );
     }
 
     public function create(EventPayloadData $payload): StoredEventData
@@ -224,5 +232,46 @@ final class InMemoryEventRepository implements EventRepository
         $this->events[$eventId] = $updatedEvent;
 
         return $updatedEvent;
+    }
+
+    /**
+     * @return array<int, StoredEventData>
+     */
+    private function filteredEvents(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
+    {
+        return array_values(array_filter(
+            $this->events,
+            function (StoredEventData $event) use ($statuses, $eventName, $traceId): bool {
+                if ($statuses !== [] && ! in_array($event->status->value, $statuses, true)) {
+                    return false;
+                }
+
+                if ($eventName !== null && $event->eventName !== $eventName) {
+                    return false;
+                }
+
+                if ($traceId !== null && $event->traceId !== $traceId) {
+                    return false;
+                }
+
+                return true;
+            },
+        ));
+    }
+
+    /**
+     * @param  array<int, StoredEventData>  $events
+     */
+    private function sortEvents(array &$events): void
+    {
+        usort($events, function (StoredEventData $left, StoredEventData $right): int {
+            $byCreatedAt = $right->createdAt <=> $left->createdAt;
+
+            if ($byCreatedAt !== 0) {
+                return $byCreatedAt;
+            }
+
+            return strcmp($right->id, $left->id);
+        });
     }
 }
