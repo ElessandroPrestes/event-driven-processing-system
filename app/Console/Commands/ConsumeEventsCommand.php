@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqMessageHandler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqTopologyManager;
 use Illuminate\Console\Command;
-use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Message\AMQPMessage;
 
@@ -20,15 +20,10 @@ final class ConsumeEventsCommand extends Command
 
     public function handle(
         RabbitMqMessageHandler $handler,
+        RabbitMqConnectionFactory $connections,
         RabbitMqTopologyManager $topology,
     ): int {
-        $connection = new AMQPStreamConnection(
-            host: (string) config('event_pipeline.rabbitmq.host'),
-            port: (int) config('event_pipeline.rabbitmq.port'),
-            user: (string) config('event_pipeline.rabbitmq.user'),
-            password: (string) config('event_pipeline.rabbitmq.password'),
-            vhost: (string) config('event_pipeline.rabbitmq.vhost'),
-        );
+        $connection = $connections->make();
         $channel = $connection->channel();
         $queue = (string) config('event_pipeline.rabbitmq.queue');
         $maxAttempts = (int) ($this->option('max-attempts') ?: config('event_pipeline.consumer.max_attempts'));
