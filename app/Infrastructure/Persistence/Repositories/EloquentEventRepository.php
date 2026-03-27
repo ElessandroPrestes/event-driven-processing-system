@@ -3,6 +3,7 @@
 namespace App\Infrastructure\Persistence\Repositories;
 
 use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
@@ -35,28 +36,22 @@ final class EloquentEventRepository implements EventRepository
     /**
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
+    public function list(?EventListCriteriaData $criteria = null): array
     {
         /** @var Collection<int, EventRecord> $records */
-        $records = $this->filteredQuery($statuses, $eventName, $traceId)->get();
+        $records = $this->filteredQuery($criteria)->get();
 
         return $records
             ->map(fn (EventRecord $record): StoredEventData => $this->toStoredEventData($record))
             ->all();
     }
 
-    public function paginate(
-        array $statuses = [],
-        ?string $eventName = null,
-        ?string $traceId = null,
-        int $page = 1,
-        int $perPage = 20,
-    ): PaginatedEventsData
+    public function paginate(EventListCriteriaData $criteria): PaginatedEventsData
     {
-        $page = max($page, 1);
-        $perPage = max($perPage, 1);
+        $page = max($criteria->page, 1);
+        $perPage = max($criteria->perPage, 1);
 
-        $paginator = $this->filteredQuery($statuses, $eventName, $traceId)
+        $paginator = $this->filteredQuery($criteria)
             ->paginate($perPage, ['*'], 'page', $page);
 
         return $this->toPaginatedEventsData($paginator);
@@ -159,22 +154,26 @@ final class EloquentEventRepository implements EventRepository
     /**
      * @return Builder<EventRecord>
      */
-    private function filteredQuery(array $statuses = [], ?string $eventName = null, ?string $traceId = null): Builder
+    private function filteredQuery(?EventListCriteriaData $criteria = null): Builder
     {
         $query = EventRecord::query()
             ->orderByDesc('created_at')
             ->orderByDesc('id');
 
-        if ($statuses !== []) {
-            $query->whereIn('status', $statuses);
+        if ($criteria === null) {
+            return $query;
         }
 
-        if ($eventName !== null) {
-            $query->where('event_name', $eventName);
+        if ($criteria->statuses !== []) {
+            $query->whereIn('status', $criteria->statuses);
         }
 
-        if ($traceId !== null) {
-            $query->where('trace_id', $traceId);
+        if ($criteria->eventName !== null) {
+            $query->where('event_name', $criteria->eventName);
+        }
+
+        if ($criteria->traceId !== null) {
+            $query->where('trace_id', $criteria->traceId);
         }
 
         return $query;

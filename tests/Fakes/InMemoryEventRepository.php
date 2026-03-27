@@ -3,6 +3,7 @@
 namespace Tests\Fakes;
 
 use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
@@ -37,25 +38,19 @@ final class InMemoryEventRepository implements EventRepository
     /**
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
+    public function list(?EventListCriteriaData $criteria = null): array
     {
-        $events = $this->filteredEvents($statuses, $eventName, $traceId);
+        $events = $this->filteredEvents($criteria);
         $this->sortEvents($events);
 
         return $events;
     }
 
-    public function paginate(
-        array $statuses = [],
-        ?string $eventName = null,
-        ?string $traceId = null,
-        int $page = 1,
-        int $perPage = 20,
-    ): PaginatedEventsData
+    public function paginate(EventListCriteriaData $criteria): PaginatedEventsData
     {
-        $page = max($page, 1);
-        $perPage = max($perPage, 1);
-        $events = $this->filteredEvents($statuses, $eventName, $traceId);
+        $page = max($criteria->page, 1);
+        $perPage = max($criteria->perPage, 1);
+        $events = $this->filteredEvents($criteria);
 
         $this->sortEvents($events);
 
@@ -237,8 +232,12 @@ final class InMemoryEventRepository implements EventRepository
     /**
      * @return array<int, StoredEventData>
      */
-    private function filteredEvents(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
+    private function filteredEvents(?EventListCriteriaData $criteria = null): array
     {
+        $statuses = $criteria?->statuses ?? [];
+        $eventName = $criteria?->eventName;
+        $traceId = $criteria?->traceId;
+
         return array_values(array_filter(
             $this->events,
             function (StoredEventData $event) use ($statuses, $eventName, $traceId): bool {

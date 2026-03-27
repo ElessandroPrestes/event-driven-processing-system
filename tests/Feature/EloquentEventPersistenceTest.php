@@ -2,6 +2,7 @@
 
 use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\Enums\EventStatus;
@@ -74,10 +75,19 @@ it('persists and transitions events through the eloquent event repository', func
 
     $byId = $repository->findById($processed->id);
     $byIdempotencyKey = $repository->findByIdempotencyKey('idem-eloquent-002');
-    $failedEvents = $repository->list(statuses: ['publish_failed']);
-    $invoiceEvents = $repository->list(eventName: 'invoice.generated');
-    $traceEvents = $repository->list(traceId: 'trace-eloquent-002');
-    $paginatedEvents = $repository->paginate(page: 2, perPage: 2);
+    $failedEvents = $repository->list(new EventListCriteriaData(
+        statuses: ['publish_failed'],
+    ));
+    $invoiceEvents = $repository->list(new EventListCriteriaData(
+        eventName: 'invoice.generated',
+    ));
+    $traceEvents = $repository->list(new EventListCriteriaData(
+        traceId: 'trace-eloquent-002',
+    ));
+    $paginatedEvents = $repository->paginate(new EventListCriteriaData(
+        page: 2,
+        perPage: 2,
+    ));
 
     expect($byId?->status)->toBe(EventStatus::PROCESSED)
         ->and($byId?->processingResult)->toMatchArray([

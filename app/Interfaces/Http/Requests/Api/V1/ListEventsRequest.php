@@ -2,6 +2,7 @@
 
 namespace App\Interfaces\Http\Requests\Api\V1;
 
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\Enums\EventStatus;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -76,5 +77,16 @@ final class ListEventsRequest extends FormRequest
         $defaultPerPage = max((int) config('event_pipeline.api.pagination.events.default_per_page', 20), 1);
 
         return (int) $this->validated('per_page', $defaultPerPage);
+    }
+
+    public function criteria(): EventListCriteriaData
+    {
+        return new EventListCriteriaData(
+            statuses: $this->statuses(),
+            eventName: $this->eventName(),
+            traceId: $this->traceId(),
+            page: $this->currentPage(),
+            perPage: $this->perPage(),
+        );
     }
 }

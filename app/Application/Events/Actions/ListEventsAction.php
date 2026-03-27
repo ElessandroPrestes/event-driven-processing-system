@@ -3,6 +3,7 @@
 namespace App\Application\Events\Actions;
 
 use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 
 final class ListEventsAction
@@ -11,16 +12,8 @@ final class ListEventsAction
         private readonly EventRepository $events,
     ) {}
 
-    /**
-     * @param  array<int, string>  $statuses
-     */
-    public function handle(
-        array $statuses = [],
-        ?string $eventName = null,
-        ?string $traceId = null,
-        int $page = 1,
-        int $perPage = 20,
-    ): PaginatedEventsData {
-        return $this->events->paginate($statuses, $eventName, $traceId, $page, $perPage);
+    public function handle(EventListCriteriaData $criteria): PaginatedEventsData
+    {
+        return $this->events->paginate($criteria);
     }
 }

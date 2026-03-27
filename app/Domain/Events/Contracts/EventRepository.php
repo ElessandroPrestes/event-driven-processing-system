@@ -2,6 +2,7 @@
 
 namespace App\Domain\Events\Contracts;
 
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
 use App\Domain\Events\DataTransferObjects\PaginatedEventsData;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
@@ -16,15 +17,9 @@ interface EventRepository
     /**
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array;
+    public function list(?EventListCriteriaData $criteria = null): array;
 
-    public function paginate(
-        array $statuses = [],
-        ?string $eventName = null,
-        ?string $traceId = null,
-        int $page = 1,
-        int $perPage = 20,
-    ): PaginatedEventsData;
+    public function paginate(EventListCriteriaData $criteria): PaginatedEventsData;
 
     public function create(EventPayloadData $payload): StoredEventData;
 

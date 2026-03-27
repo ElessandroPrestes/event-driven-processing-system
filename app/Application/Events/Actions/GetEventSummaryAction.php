@@ -5,6 +5,7 @@ namespace App\Application\Events\Actions;
 use App\Application\Events\DataTransferObjects\EventSummaryData;
 use App\Application\Events\Services\EventMetricsAggregator;
 use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 
 final class GetEventSummaryAction
 {
@@ -15,7 +16,9 @@ final class GetEventSummaryAction
 
     public function handle(?string $eventName = null): EventSummaryData
     {
-        $summary = $this->metrics->summarize($this->events->list([], $eventName));
+        $summary = $this->metrics->summarize($this->events->list(
+            new EventListCriteriaData(eventName: $eventName),
+        ));
 
         return new EventSummaryData(
             total: $summary->total,
