@@ -30,6 +30,7 @@ docker compose up --build
 Serviços expostos:
 - API Laravel: `http://localhost:8080`
 - Health check da API: `http://localhost:8080/api/v1/health`
+- Exportacao de metricas Prometheus: `GET http://localhost:8080/api/v1/metrics`
 - Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
 - Resumo operacional: `GET http://localhost:8080/api/v1/events/summary`
 - Consulta de eventos: `GET http://localhost:8080/api/v1/events`
@@ -53,6 +54,7 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 ## Autenticacao da API
 - ingestao de eventos: enviar `X-Ingest-Api-Key` com o valor configurado em `EVENT_INGEST_API_KEY`
 - operacao e consultas: enviar `X-Operations-Api-Key` com o valor configurado em `EVENT_OPERATIONS_API_KEY`
+- exportacao de metricas: reutiliza `X-Operations-Api-Key`
 - `GET /api/v1/health` permanece publico para health check
 
 ## Correlacao e trace
@@ -99,6 +101,13 @@ curl --request GET \
   --url 'http://localhost:8080/api/v1/events/summary'
 ```
 
+## Exemplo de exportacao de metricas
+```bash
+curl --request GET \
+  --header 'X-Operations-Api-Key: change-me-operations' \
+  --url 'http://localhost:8080/api/v1/metrics'
+```
+
 ## Exemplo de reenfileiramento manual
 ```bash
 curl --request POST \
@@ -114,4 +123,4 @@ curl --request GET \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual e historico de transicoes, a autenticacao por chave de API com escopos separados e a correlacao distribuida por `trace_id`. Evolucoes futuras incluem exportacao de telemetria externa e politicas de resiliencia ainda mais refinadas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id` e exportacao de metricas operacionais em formato Prometheus. Evolucoes futuras incluem politicas de resiliencia ainda mais refinadas.

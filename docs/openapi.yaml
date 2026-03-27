@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.7.0
-  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave e correlacao por trace_id.
+  version: 0.8.0
+  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave, correlacao por trace_id e exportacao de metricas.
 servers:
   - url: http://localhost:8080
 paths:
@@ -12,6 +12,22 @@ paths:
       responses:
         '200':
           description: Aplicacao saudavel
+  /api/v1/metrics:
+    get:
+      summary: Exporta metricas operacionais em formato Prometheus
+      security:
+        - OperationsApiKey: []
+      parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
+      responses:
+        '200':
+          description: Metricas operacionais exportadas
+          content:
+            text/plain:
+              schema:
+                type: string
+        '401':
+          description: Chave de API invalida
   /api/v1/events:
     get:
       summary: Lista eventos recebidos e processados
