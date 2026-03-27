@@ -10,6 +10,7 @@ final readonly class StoredEventData
     /**
      * @param  array<string, mixed>  $payload
      * @param  array<string, mixed>|null  $metadata
+     * @param  array<string, mixed>|null  $processingResult
      */
     public function __construct(
         public string $id,
@@ -21,6 +22,10 @@ final readonly class StoredEventData
         public string $contentHash,
         public ?CarbonImmutable $occurredAt,
         public ?CarbonImmutable $queuedAt,
+        public ?CarbonImmutable $consumedAt,
+        public ?CarbonImmutable $processedAt,
+        public int $processingAttempts,
+        public ?array $processingResult,
         public ?string $failureReason,
         public CarbonImmutable $createdAt,
         public CarbonImmutable $updatedAt,

@@ -1,14 +1,16 @@
 <?php
 
 use App\Domain\Events\Contracts\EventPublisher;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Domain\Events\Contracts\EventRepository;
+use App\Domain\Events\Enums\EventStatus;
 use Tests\Fakes\FakeEventPublisher;
-
-uses(RefreshDatabase::class);
+use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
+    $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
 
+    app()->instance(EventRepository::class, $this->events);
     app()->instance(EventPublisher::class, $this->publisher);
 });
 
@@ -31,11 +33,11 @@ it('accepts a supported event and queues it', function (): void {
         ->assertJsonPath('data.status', 'queued')
         ->assertJsonPath('meta.duplicate', false);
 
-    $this->assertDatabaseHas('events', [
-        'event_name' => 'user.created',
-        'idempotency_key' => 'evt-user-created-001',
-        'status' => 'queued',
-    ]);
+    $event = $this->events->findByIdempotencyKey('evt-user-created-001');
+
+    expect($event)->not->toBeNull()
+        ->and($event?->eventName)->toBe('user.created')
+        ->and($event?->status)->toBe(EventStatus::QUEUED);
 
     expect($this->publisher->published)->toHaveCount(1);
 });
@@ -126,10 +128,10 @@ it('marks the event as publish_failed when rabbitmq publishing fails', function 
         ->assertJsonPath('message', 'Falha ao publicar o evento no RabbitMQ.')
         ->assertJsonPath('data.status', 'publish_failed');
 
-    $this->assertDatabaseHas('events', [
-        'idempotency_key' => 'evt-publish-failed-001',
-        'status' => 'publish_failed',
-    ]);
+    $event = $this->events->findByIdempotencyKey('evt-publish-failed-001');
+
+    expect($event)->not->toBeNull()
+        ->and($event?->status)->toBe(EventStatus::PUBLISH_FAILED);
 });
 
 it('shows a stored event by id', function (): void {

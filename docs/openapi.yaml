@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.2.0
-  description: API inicial para recepcao, persistencia e consulta de eventos.
+  version: 0.3.0
+  description: API para recepcao, processamento assincrono e consulta de eventos.
 servers:
   - url: http://localhost:8080
 paths:
@@ -13,6 +13,23 @@ paths:
         '200':
           description: Aplicacao saudavel
   /api/v1/events:
+    get:
+      summary: Lista eventos recebidos e processados
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+            example: processed,processing_failed
+        - in: query
+          name: event_name
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de eventos
     post:
       summary: Recebe um novo evento e o publica no RabbitMQ
       parameters:

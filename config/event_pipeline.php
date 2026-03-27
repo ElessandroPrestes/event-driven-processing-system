@@ -23,4 +23,9 @@ return [
     'api' => [
         'idempotency_header' => 'Idempotency-Key',
     ],
+
+    'consumer' => [
+        'max_attempts' => (int) env('EVENT_CONSUMER_MAX_ATTEMPTS', 3),
+        'idle_timeout' => (int) env('EVENT_CONSUMER_IDLE_TIMEOUT', 5),
+    ],
 ];

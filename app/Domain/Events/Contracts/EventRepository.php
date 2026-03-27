@@ -12,9 +12,24 @@ interface EventRepository
 
     public function findByIdempotencyKey(string $idempotencyKey): ?StoredEventData;
 
+    /**
+     * @param  array<int, string>  $statuses
+     * @return array<int, StoredEventData>
+     */
+    public function list(array $statuses = [], ?string $eventName = null): array;
+
     public function create(EventPayloadData $payload): StoredEventData;
 
-    public function markAsQueued(string $eventId, CarbonImmutable $queuedAt): StoredEventData;
+    public function markAsQueued(string $eventId, CarbonImmutable $queuedAt, ?string $failureReason = null): StoredEventData;
 
     public function markAsPublishFailed(string $eventId, string $failureReason): StoredEventData;
+
+    public function markAsProcessing(string $eventId, CarbonImmutable $consumedAt): StoredEventData;
+
+    /**
+     * @param  array<string, mixed>  $processingResult
+     */
+    public function markAsProcessed(string $eventId, CarbonImmutable $processedAt, array $processingResult): StoredEventData;
+
+    public function markAsProcessingFailed(string $eventId, string $failureReason): StoredEventData;
 }

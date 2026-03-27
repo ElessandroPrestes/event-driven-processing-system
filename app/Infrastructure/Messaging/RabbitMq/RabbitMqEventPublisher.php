@@ -4,13 +4,16 @@ namespace App\Infrastructure\Messaging\RabbitMq;
 
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
-use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Message\AMQPMessage;
 use PhpAmqpLib\Wire\AMQPTable;
 
 final class RabbitMqEventPublisher implements EventPublisher
 {
+    public function __construct(
+        private readonly RabbitMqTopologyManager $topology,
+    ) {}
+
     public function publish(StoredEventData $event): void
     {
         $connection = new AMQPStreamConnection(
@@ -24,7 +27,7 @@ final class RabbitMqEventPublisher implements EventPublisher
         $channel = $connection->channel();
 
         try {
-            $this->declareTopology($channel);
+            $this->topology->declare($channel);
 
             $message = new AMQPMessage(
                 json_encode([
@@ -58,17 +61,5 @@ final class RabbitMqEventPublisher implements EventPublisher
             $channel->close();
             $connection->close();
         }
-    }
-
-    private function declareTopology(AMQPChannel $channel): void
-    {
-        $exchange = (string) config('event_pipeline.rabbitmq.exchange');
-        $exchangeType = (string) config('event_pipeline.rabbitmq.exchange_type');
-        $queue = (string) config('event_pipeline.rabbitmq.queue');
-        $durable = (bool) config('event_pipeline.rabbitmq.durable');
-
-        $channel->exchange_declare($exchange, $exchangeType, false, $durable, false);
-        $channel->queue_declare($queue, false, $durable, false, false);
-        $channel->queue_bind($queue, $exchange, '#');
     }
 }

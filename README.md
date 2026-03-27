@@ -31,6 +31,7 @@ Serviços expostos:
 - API Laravel: `http://localhost:8080`
 - Health check da API: `http://localhost:8080/api/v1/health`
 - Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
+- Consulta de eventos: `GET http://localhost:8080/api/v1/events`
 - Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
 - Health nativo do Laravel: `http://localhost:8080/up`
 - PostgreSQL: `localhost:5432`
@@ -43,6 +44,8 @@ Na primeira subida o container da aplicação:
 - instala dependências PHP
 - gera `APP_KEY` se necessário
 - executa as migrations
+
+O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fila RabbitMQ com o comando `php artisan events:consume`.
 
 ## Qualidade
 ```bash
@@ -67,5 +70,11 @@ curl --request POST \
   }'
 ```
 
+## Exemplo de consulta de eventos processados
+```bash
+curl --request GET \
+  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed'
+```
+
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a linha de base de qualidade e a recepcao inicial de eventos. Consumers RabbitMQ e o processamento assincrono dos eventos seguem para as proximas etapas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos e o processamento assincrono por worker RabbitMQ. Evolucoes futuras incluem politicas mais sofisticadas de retry, observabilidade operacional ampliada e endpoints adicionais de negocio.
