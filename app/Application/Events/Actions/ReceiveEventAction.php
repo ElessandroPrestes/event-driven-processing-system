@@ -5,6 +5,7 @@ namespace App\Application\Events\Actions;
 use App\Application\Events\DataTransferObjects\ReceiveEventResult;
 use App\Application\Events\Exceptions\EventPublicationException;
 use App\Application\Events\Exceptions\IdempotencyConflictException;
+use App\Application\Events\Services\EventHistoryRecorder;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\EventPayloadData;
@@ -17,6 +18,7 @@ final class ReceiveEventAction
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventPublisher $publisher,
+        private readonly EventHistoryRecorder $history,
     ) {}
 
     public function handle(EventPayloadData $payload): ReceiveEventResult
@@ -27,6 +29,16 @@ final class ReceiveEventAction
             if ($existingEvent->contentHash !== $payload->contentHash()) {
                 throw new IdempotencyConflictException;
             }
+
+            $this->history->record(
+                event: $existingEvent,
+                action: 'duplicate_detected',
+                source: 'api',
+                fromStatus: $existingEvent->status,
+                context: [
+                    'idempotency_key' => $existingEvent->idempotencyKey,
+                ],
+            );
 
             return ReceiveEventResult::duplicate($existingEvent);
         }
@@ -40,6 +52,15 @@ final class ReceiveEventAction
             'idempotency_key' => $event->idempotencyKey,
         ]);
 
+        $this->history->record(
+            event: $event,
+            action: 'received',
+            source: 'api',
+            context: [
+                'idempotency_key' => $event->idempotencyKey,
+            ],
+        );
+
         try {
             $this->publisher->publish($event);
         } catch (Throwable $exception) {
@@ -52,6 +73,16 @@ final class ReceiveEventAction
                 'error' => $exception->getMessage(),
             ]);
 
+            $this->history->record(
+                event: $failedEvent,
+                action: 'publish_failed',
+                source: 'api',
+                fromStatus: $event->status,
+                context: [
+                    'error' => $exception->getMessage(),
+                ],
+            );
+
             throw new EventPublicationException($failedEvent, $exception);
         }
 
@@ -63,6 +94,16 @@ final class ReceiveEventAction
             'status' => $queuedEvent->status->value,
             'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),
         ]);
+
+        $this->history->record(
+            event: $queuedEvent,
+            action: 'queued',
+            source: 'api',
+            fromStatus: $event->status,
+            context: [
+                'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),
+            ],
+        );
 
         return ReceiveEventResult::queued($queuedEvent);
     }

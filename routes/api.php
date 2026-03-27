@@ -2,6 +2,7 @@
 
 use App\Interfaces\Http\Controllers\Api\V1\EventSummaryController;
 use App\Interfaces\Http\Controllers\Api\V1\HealthCheckController;
+use App\Interfaces\Http\Controllers\Api\V1\ListEventHistoryController;
 use App\Interfaces\Http\Controllers\Api\V1\ListEventsController;
 use App\Interfaces\Http\Controllers\Api\V1\RetryEventController;
 use App\Interfaces\Http\Controllers\Api\V1\ShowEventController;
@@ -20,6 +21,10 @@ Route::prefix('v1')->group(function (): void {
 
     Route::get('/events', ListEventsController::class)
         ->name('api.v1.events.index');
+
+    Route::get('/events/{eventId}/history', ListEventHistoryController::class)
+        ->whereUuid('eventId')
+        ->name('api.v1.events.history');
 
     Route::post('/events/{eventId}/retry', RetryEventController::class)
         ->whereUuid('eventId')

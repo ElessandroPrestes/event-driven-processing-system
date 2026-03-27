@@ -4,6 +4,7 @@ namespace App\Application\Events\Actions;
 
 use App\Application\Events\Exceptions\EventRetryDispatchException;
 use App\Application\Events\Exceptions\EventRetryNotAllowedException;
+use App\Application\Events\Services\EventHistoryRecorder;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
@@ -18,6 +19,7 @@ final class RetryEventAction
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventPublisher $publisher,
+        private readonly EventHistoryRecorder $history,
     ) {}
 
     public function handle(string $eventId): StoredEventData
@@ -39,6 +41,16 @@ final class RetryEventAction
             'processing_attempts' => $event->processingAttempts,
         ]);
 
+        $this->history->record(
+            event: $event,
+            action: 'retry_requested',
+            source: 'api',
+            fromStatus: $event->status,
+            context: [
+                'processing_attempts' => $event->processingAttempts,
+            ],
+        );
+
         try {
             $this->publisher->publish($event);
         } catch (Throwable $exception) {
@@ -50,6 +62,16 @@ final class RetryEventAction
                 'status' => $failedEvent->status->value,
                 'error' => $exception->getMessage(),
             ]);
+
+            $this->history->record(
+                event: $failedEvent,
+                action: 'retry_enqueue_failed',
+                source: 'api',
+                fromStatus: $event->status,
+                context: [
+                    'error' => $exception->getMessage(),
+                ],
+            );
 
             throw new EventRetryDispatchException($failedEvent, $exception);
         }
@@ -63,6 +85,16 @@ final class RetryEventAction
             'status' => $queuedEvent->status->value,
             'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),
         ]);
+
+        $this->history->record(
+            event: $queuedEvent,
+            action: 'retry_enqueued',
+            source: 'api',
+            fromStatus: $event->status,
+            context: [
+                'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),
+            ],
+        );
 
         return $queuedEvent;
     }

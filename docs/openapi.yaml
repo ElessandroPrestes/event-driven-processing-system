@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.4.0
-  description: API para recepcao, processamento assincrono, operacao e consulta de eventos.
+  version: 0.5.0
+  description: API para recepcao, processamento assincrono, operacao, historico e consulta de eventos.
 servers:
   - url: http://localhost:8080
 paths:
@@ -80,6 +80,21 @@ paths:
       responses:
         '200':
           description: Evento encontrado
+        '404':
+          description: Evento nao encontrado
+  /api/v1/events/{id}/history:
+    get:
+      summary: Lista o historico cronologico de transicoes e acoes de um evento
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Historico do evento
         '404':
           description: Evento nao encontrado
   /api/v1/events/{id}/retry:

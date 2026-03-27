@@ -34,6 +34,7 @@ Serviços expostos:
 - Resumo operacional: `GET http://localhost:8080/api/v1/events/summary`
 - Consulta de eventos: `GET http://localhost:8080/api/v1/events`
 - Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
+- Historico do evento: `GET http://localhost:8080/api/v1/events/{id}/history`
 - Reenfileiramento manual: `POST http://localhost:8080/api/v1/events/{id}/retry`
 - Health nativo do Laravel: `http://localhost:8080/up`
 - PostgreSQL: `localhost:5432`
@@ -90,5 +91,11 @@ curl --request POST \
   --url http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/retry
 ```
 
+## Exemplo de consulta do historico
+```bash
+curl --request GET \
+  --url http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/history
+```
+
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ e os controles operacionais de resumo e reenfileiramento manual. Evolucoes futuras incluem autenticacao, telemetria externa e politicas de resiliencia ainda mais refinadas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ e os controles operacionais de resumo, reenfileiramento manual e historico de transicoes. Evolucoes futuras incluem autenticacao, telemetria externa e politicas de resiliencia ainda mais refinadas.

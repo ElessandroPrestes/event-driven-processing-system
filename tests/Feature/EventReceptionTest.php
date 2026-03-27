@@ -1,17 +1,21 @@
 <?php
 
+use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\Enums\EventStatus;
 use Tests\Fakes\FakeEventPublisher;
+use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
+    $this->history = new InMemoryEventHistoryRepository;
 
     app()->instance(EventRepository::class, $this->events);
     app()->instance(EventPublisher::class, $this->publisher);
+    app()->instance(EventHistoryRepository::class, $this->history);
 });
 
 it('accepts a supported event and queues it', function (): void {

@@ -2,19 +2,23 @@
 
 use App\Application\Events\Actions\ProcessQueuedEventAction;
 use App\Application\Events\Services\EventProcessorRegistry;
+use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\Enums\EventStatus;
 use Tests\Fakes\FailingEventProcessor;
 use Tests\Fakes\FakeEventPublisher;
+use Tests\Fakes\InMemoryEventHistoryRepository;
 use Tests\Fakes\InMemoryEventRepository;
 
 beforeEach(function (): void {
     $this->events = new InMemoryEventRepository;
     $this->publisher = new FakeEventPublisher;
+    $this->history = new InMemoryEventHistoryRepository;
 
     app()->instance(EventRepository::class, $this->events);
     app()->instance(EventPublisher::class, $this->publisher);
+    app()->instance(EventHistoryRepository::class, $this->history);
 });
 
 it('retries a publish_failed event through the api', function (): void {

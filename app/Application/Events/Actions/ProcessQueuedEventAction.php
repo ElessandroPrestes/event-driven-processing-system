@@ -3,6 +3,7 @@
 namespace App\Application\Events\Actions;
 
 use App\Application\Events\DataTransferObjects\ProcessEventResult;
+use App\Application\Events\Services\EventHistoryRecorder;
 use App\Application\Events\Services\EventProcessorRegistry;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\Enums\EventStatus;
@@ -15,6 +16,7 @@ final class ProcessQueuedEventAction
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventProcessorRegistry $processors,
+        private readonly EventHistoryRecorder $history,
     ) {}
 
     public function handle(string $eventId, int $maxAttempts): ProcessEventResult
@@ -49,6 +51,16 @@ final class ProcessQueuedEventAction
             'processing_attempts' => $processingEvent->processingAttempts,
         ]);
 
+        $this->history->record(
+            event: $processingEvent,
+            action: 'processing_started',
+            source: 'worker',
+            fromStatus: $event->status,
+            context: [
+                'processing_attempts' => $processingEvent->processingAttempts,
+            ],
+        );
+
         try {
             $processingResult = $this->processors
                 ->for($processingEvent->eventName)
@@ -67,6 +79,17 @@ final class ProcessQueuedEventAction
                 'processed_at' => $processedEvent->processedAt?->toIso8601String(),
             ]);
 
+            $this->history->record(
+                event: $processedEvent,
+                action: 'processed',
+                source: 'worker',
+                fromStatus: $processingEvent->status,
+                context: [
+                    'processing_attempts' => $processedEvent->processingAttempts,
+                    'processing_result' => $processingResult,
+                ],
+            );
+
             return ProcessEventResult::processed($processedEvent);
         } catch (Throwable $exception) {
             if ($processingEvent->processingAttempts < $maxAttempts) {
@@ -84,6 +107,17 @@ final class ProcessQueuedEventAction
                     'error' => $exception->getMessage(),
                 ]);
 
+                $this->history->record(
+                    event: $requeuedEvent,
+                    action: 'requeued',
+                    source: 'worker',
+                    fromStatus: $processingEvent->status,
+                    context: [
+                        'processing_attempts' => $processingEvent->processingAttempts,
+                        'error' => $exception->getMessage(),
+                    ],
+                );
+
                 return ProcessEventResult::retry($requeuedEvent);
             }
 
@@ -96,6 +130,17 @@ final class ProcessQueuedEventAction
                 'processing_attempts' => $failedEvent->processingAttempts,
                 'error' => $exception->getMessage(),
             ]);
+
+            $this->history->record(
+                event: $failedEvent,
+                action: 'processing_failed',
+                source: 'worker',
+                fromStatus: $processingEvent->status,
+                context: [
+                    'processing_attempts' => $failedEvent->processingAttempts,
+                    'error' => $exception->getMessage(),
+                ],
+            );
 
             return ProcessEventResult::failed($failedEvent);
         }
