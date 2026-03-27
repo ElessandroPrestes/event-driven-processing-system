@@ -14,6 +14,10 @@ function configureEventPipelineApiKeys(): void
     config()->set('event_pipeline.auth.ingest.key', 'test-ingest-key');
     config()->set('event_pipeline.auth.operations.header', 'X-Operations-Api-Key');
     config()->set('event_pipeline.auth.operations.key', 'test-operations-key');
+    config()->set('event_pipeline.rate_limits.ingest.max_attempts', 60);
+    config()->set('event_pipeline.rate_limits.ingest.decay_seconds', 60);
+    config()->set('event_pipeline.rate_limits.operations.max_attempts', 120);
+    config()->set('event_pipeline.rate_limits.operations.decay_seconds', 60);
     config()->set('event_pipeline.observability.trace_header', 'X-Trace-Id');
 }
 

@@ -5,6 +5,7 @@ use App\Application\Events\Exceptions\EventRetryDispatchException;
 use App\Application\Events\Exceptions\EventRetryNotAllowedException;
 use App\Application\Events\Exceptions\IdempotencyConflictException;
 use App\Interfaces\Http\Middleware\EnsureEventPipelineApiKey;
+use App\Interfaces\Http\Middleware\EnsureEventPipelineRateLimit;
 use App\Interfaces\Http\Middleware\EnsureRequestTraceContext;
 use App\Interfaces\Http\Resources\Api\V1\EventResource;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'event.pipeline.auth' => EnsureEventPipelineApiKey::class,
+            'event.pipeline.rate_limit' => EnsureEventPipelineRateLimit::class,
             'event.pipeline.trace' => EnsureRequestTraceContext::class,
         ]);
     })

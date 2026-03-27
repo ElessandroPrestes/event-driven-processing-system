@@ -44,6 +44,17 @@ return [
         ],
     ],
 
+    'rate_limits' => [
+        'ingest' => [
+            'max_attempts' => (int) env('EVENT_INGEST_RATE_LIMIT_MAX_ATTEMPTS', 60),
+            'decay_seconds' => (int) env('EVENT_INGEST_RATE_LIMIT_DECAY_SECONDS', 60),
+        ],
+        'operations' => [
+            'max_attempts' => (int) env('EVENT_OPERATIONS_RATE_LIMIT_MAX_ATTEMPTS', 120),
+            'decay_seconds' => (int) env('EVENT_OPERATIONS_RATE_LIMIT_DECAY_SECONDS', 60),
+        ],
+    ],
+
     'observability' => [
         'trace_header' => env('EVENT_TRACE_HEADER', 'X-Trace-Id'),
     ],

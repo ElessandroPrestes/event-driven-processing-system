@@ -16,42 +16,37 @@ Route::prefix('v1')->middleware('event.pipeline.trace')->group(function (): void
     Route::get('/health', HealthCheckController::class)
         ->name('api.v1.health');
 
-    Route::get('/metrics', EventMetricsController::class)
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.metrics');
+    Route::middleware(['event.pipeline.rate_limit:ingest', 'event.pipeline.auth:ingest'])->group(function (): void {
+        Route::post('/events', StoreEventController::class)
+            ->name('api.v1.events.store');
+    });
 
-    Route::post('/events', StoreEventController::class)
-        ->middleware('event.pipeline.auth:ingest')
-        ->name('api.v1.events.store');
+    Route::middleware(['event.pipeline.rate_limit:operations', 'event.pipeline.auth:operations'])->group(function (): void {
+        Route::get('/metrics', EventMetricsController::class)
+            ->name('api.v1.metrics');
 
-    Route::get('/events/summary', EventSummaryController::class)
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.events.summary');
+        Route::get('/events/summary', EventSummaryController::class)
+            ->name('api.v1.events.summary');
 
-    Route::get('/events', ListEventsController::class)
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.events.index');
+        Route::get('/events', ListEventsController::class)
+            ->name('api.v1.events.index');
 
-    Route::get('/quarantine', ListQuarantinedMessagesController::class)
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.quarantine.index');
+        Route::get('/quarantine', ListQuarantinedMessagesController::class)
+            ->name('api.v1.quarantine.index');
 
-    Route::post('/quarantine/replay', ReplayQuarantinedMessagesController::class)
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.quarantine.replay');
+        Route::post('/quarantine/replay', ReplayQuarantinedMessagesController::class)
+            ->name('api.v1.quarantine.replay');
 
-    Route::get('/events/{eventId}/history', ListEventHistoryController::class)
-        ->whereUuid('eventId')
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.events.history');
+        Route::get('/events/{eventId}/history', ListEventHistoryController::class)
+            ->whereUuid('eventId')
+            ->name('api.v1.events.history');
 
-    Route::post('/events/{eventId}/retry', RetryEventController::class)
-        ->whereUuid('eventId')
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.events.retry');
+        Route::post('/events/{eventId}/retry', RetryEventController::class)
+            ->whereUuid('eventId')
+            ->name('api.v1.events.retry');
 
-    Route::get('/events/{eventId}', ShowEventController::class)
-        ->whereUuid('eventId')
-        ->middleware('event.pipeline.auth:operations')
-        ->name('api.v1.events.show');
+        Route::get('/events/{eventId}', ShowEventController::class)
+            ->whereUuid('eventId')
+            ->name('api.v1.events.show');
+    });
 });

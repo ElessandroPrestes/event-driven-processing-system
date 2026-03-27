@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: eventflow-platform API
   version: 0.9.0
-  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave, correlacao por trace_id, exportacao de metricas e operacao da DLQ.
+  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave, rate limit por escopo, correlacao por trace_id, exportacao de metricas e operacao da DLQ.
 servers:
   - url: http://localhost:8080
 paths:
@@ -28,6 +28,8 @@ paths:
                 type: string
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /api/v1/events:
     get:
       summary: Lista eventos recebidos e processados
@@ -57,6 +59,8 @@ paths:
           description: Lista de eventos
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
     post:
       summary: Recebe um novo evento e o publica no RabbitMQ
       security:
@@ -85,6 +89,8 @@ paths:
           description: Payload invalido
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '503':
           description: Falha ao publicar o evento no RabbitMQ
   /api/v1/events/summary:
@@ -104,6 +110,8 @@ paths:
           description: Resumo operacional calculado
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /api/v1/quarantine:
     get:
       summary: Lista uma amostra da dead-letter queue operacional
@@ -124,6 +132,8 @@ paths:
           description: Snapshot da quarentena
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
   /api/v1/quarantine/replay:
     post:
       summary: Republica mensagens da dead-letter queue para a fila principal
@@ -148,6 +158,8 @@ paths:
           description: Replay da quarentena executado
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '503':
           description: Falha ao reenfileirar mensagens da quarentena
   /api/v1/events/{id}:
@@ -168,6 +180,8 @@ paths:
           description: Evento encontrado
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '404':
           description: Evento nao encontrado
   /api/v1/events/{id}/history:
@@ -188,6 +202,8 @@ paths:
           description: Historico do evento
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '404':
           description: Evento nao encontrado
   /api/v1/events/{id}/retry:
@@ -208,6 +224,8 @@ paths:
           description: Evento reenfileirado com sucesso
         '401':
           description: Chave de API invalida
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '404':
           description: Evento nao encontrado
         '409':
@@ -232,7 +250,54 @@ components:
       type: apiKey
       in: header
       name: X-Operations-Api-Key
+  responses:
+    TooManyRequests:
+      description: Limite de requisicoes excedido para o escopo autenticado
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 0
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+            minimum: 1
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitError'
   schemas:
+    RateLimitError:
+      type: object
+      required:
+        - message
+        - data
+      properties:
+        message:
+          type: string
+          example: Limite de requisicoes excedido para este escopo da API.
+        data:
+          type: object
+          required:
+            - scope
+            - limit
+            - retry_after_seconds
+          properties:
+            scope:
+              type: string
+              enum:
+                - ingest
+                - operations
+            limit:
+              type: integer
+              minimum: 1
+            retry_after_seconds:
+              type: integer
+              minimum: 1
     StoreEventRequest:
       type: object
       required:

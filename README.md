@@ -68,6 +68,12 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 - exportacao de metricas: reutiliza `X-Operations-Api-Key`
 - `GET /api/v1/health` permanece publico para health check
 
+## Protecao contra abuso
+- a API aplica limitacao de taxa por escopo e por IP, separando buckets de ingestao e operacao
+- ingestao usa `EVENT_INGEST_RATE_LIMIT_MAX_ATTEMPTS` e `EVENT_INGEST_RATE_LIMIT_DECAY_SECONDS`
+- operacao usa `EVENT_OPERATIONS_RATE_LIMIT_MAX_ATTEMPTS` e `EVENT_OPERATIONS_RATE_LIMIT_DECAY_SECONDS`
+- quando o limite e excedido, a API responde com `429 Too Many Requests` e envia `Retry-After`, `X-RateLimit-Limit` e `X-RateLimit-Remaining`
+
 ## Correlacao e trace
 - a API aceita o header opcional `X-Trace-Id` para correlacionar a requisicao com o evento persistido e com a mensagem publicada no RabbitMQ
 - quando o header nao e enviado, a aplicacao gera um `trace_id` automaticamente e o devolve no header de resposta `X-Trace-Id`
@@ -155,4 +161,4 @@ curl --request POST \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual, historico de transicoes, autenticacao por chave de API com escopos separados, rate limit por escopo e IP, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.
