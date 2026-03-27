@@ -15,8 +15,8 @@ RUN apt-get update \
         postgresql-client \
         redis-tools \
         unzip \
-    && pecl install amqp redis \
-    && docker-php-ext-enable amqp redis \
+    && pecl install amqp pcov redis \
+    && docker-php-ext-enable amqp pcov redis \
     && docker-php-ext-install bcmath intl pcntl pdo_pgsql pdo_sqlite pgsql zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

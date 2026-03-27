@@ -16,6 +16,11 @@
         <include>
             <directory>app</directory>
         </include>
+        <exclude>
+            <file>app/Http/Controllers/Controller.php</file>
+            <file>app/Infrastructure/Messaging/RabbitMq/RabbitMqConnectionFactory.php</file>
+            <file>app/Models/User.php</file>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>

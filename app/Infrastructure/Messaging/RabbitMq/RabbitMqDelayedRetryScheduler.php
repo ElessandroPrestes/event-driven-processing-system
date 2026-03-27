@@ -4,11 +4,12 @@ namespace App\Infrastructure\Messaging\RabbitMq;
 
 use App\Application\Events\Contracts\EventRetryScheduler;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 
 final class RabbitMqDelayedRetryScheduler implements EventRetryScheduler
 {
     public function __construct(
-        private readonly RabbitMqConnectionFactory $connections,
+        private readonly AmqpConnectionFactory $connections,
         private readonly RabbitMqEventMessageFactory $messages,
         private readonly RabbitMqTopologyManager $topology,
     ) {}

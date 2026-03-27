@@ -4,11 +4,12 @@ namespace App\Infrastructure\Messaging\RabbitMq;
 
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 
 final class RabbitMqEventPublisher implements EventPublisher
 {
     public function __construct(
-        private readonly RabbitMqConnectionFactory $connections,
+        private readonly AmqpConnectionFactory $connections,
         private readonly RabbitMqEventMessageFactory $messages,
         private readonly RabbitMqTopologyManager $topology,
     ) {}

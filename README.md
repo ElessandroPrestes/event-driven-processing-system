@@ -78,8 +78,11 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 composer lint
 composer analyse
 composer test
+composer test:coverage
 composer quality
 ```
+
+`composer test:coverage` exige um driver de cobertura (`pcov` ou `xdebug`). A imagem Docker do projeto e a workflow do GitHub Actions passam a usar `pcov` e aplicam cobertura minima de 80%.
 
 ## Exemplo de envio de evento
 ```bash

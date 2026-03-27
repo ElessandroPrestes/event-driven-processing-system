@@ -16,6 +16,7 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - RabbitMQ reservado como backbone de eventos externos.
 - Docker Compose como ambiente local padrão.
 - Pest, Pint e PHPStan/Larastan como baseline de qualidade.
+- GitHub Actions como pipeline de qualidade com validacao automatizada de estilo, analise estatica e cobertura minima de 80% em Pest.
 - Logs estruturados em JSON direcionados para `stdout`, favorecendo observabilidade em containers.
 - Exportacao de metricas operacionais em formato Prometheus via endpoint autenticado para integracao com monitoramento externo.
 - Retry automatico com atraso progressivo em fila dedicada, desacoplando falhas transitórias do consumo imediato e reduzindo loops agressivos de reprocessamento.

@@ -54,6 +54,9 @@
             "@php artisan config:clear --ansi",
             "vendor/bin/pest --colors=always"
         ],
+        "test:coverage": [
+            "@php scripts/run-pest-coverage.php --min=80 --only-summary-for-coverage-text"
+        ],
         "quality": [
             "@composer lint",
             "@composer analyse",

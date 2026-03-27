@@ -1,5 +1,8 @@
 <?php
 
+use App\Domain\Events\DataTransferObjects\StoredEventData;
+use App\Domain\Events\Enums\EventStatus;
+use Carbon\CarbonImmutable;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -39,4 +42,37 @@ function eventOperationsHeaders(?string $apiKey = null, ?string $traceId = null)
     }
 
     return $headers;
+}
+
+/**
+ * @param  array<string, mixed>  $payload
+ * @param  array<string, mixed>  $attributes
+ */
+function storedEvent(
+    string $eventName = 'user.created',
+    array $payload = [],
+    EventStatus $status = EventStatus::QUEUED,
+    array $attributes = [],
+): StoredEventData {
+    $timestamp = CarbonImmutable::parse('2026-03-27T00:00:00+00:00');
+
+    return new StoredEventData(
+        id: (string) ($attributes['id'] ?? sprintf('evt-%s', uniqid('', true))),
+        traceId: $attributes['trace_id'] ?? sprintf('trace-%s', uniqid('', true)),
+        eventName: $eventName,
+        payload: $payload,
+        metadata: $attributes['metadata'] ?? null,
+        status: $status,
+        idempotencyKey: (string) ($attributes['idempotency_key'] ?? sprintf('idem-%s', uniqid('', true))),
+        contentHash: (string) ($attributes['content_hash'] ?? sprintf('hash-%s', uniqid('', true))),
+        occurredAt: $attributes['occurred_at'] ?? $timestamp,
+        queuedAt: $attributes['queued_at'] ?? ($status === EventStatus::RECEIVED ? null : $timestamp),
+        consumedAt: $attributes['consumed_at'] ?? null,
+        processedAt: $attributes['processed_at'] ?? null,
+        processingAttempts: (int) ($attributes['processing_attempts'] ?? 0),
+        processingResult: $attributes['processing_result'] ?? null,
+        failureReason: $attributes['failure_reason'] ?? null,
+        createdAt: $attributes['created_at'] ?? $timestamp,
+        updatedAt: $attributes['updated_at'] ?? $timestamp,
+    );
 }

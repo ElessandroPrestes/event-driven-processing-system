@@ -14,6 +14,8 @@ use App\Application\Events\Services\EventRetryDelayCalculator;
 use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
+use App\Infrastructure\Messaging\RabbitMq\RabbitMqConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqDelayedRetryScheduler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqEventPublisher;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqEventQuarantine;
@@ -28,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(AmqpConnectionFactory::class, RabbitMqConnectionFactory::class);
         $this->app->bind(EventPublisher::class, RabbitMqEventPublisher::class);
         $this->app->bind(EventRetryScheduler::class, RabbitMqDelayedRetryScheduler::class);
         $this->app->bind(EventQuarantineManager::class, RabbitMqEventQuarantine::class);

@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Infrastructure\Messaging\RabbitMq\RabbitMqConnectionFactory;
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqMessageHandler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqTopologyManager;
 use Illuminate\Console\Command;
@@ -20,7 +20,7 @@ final class ConsumeEventsCommand extends Command
 
     public function handle(
         RabbitMqMessageHandler $handler,
-        RabbitMqConnectionFactory $connections,
+        AmqpConnectionFactory $connections,
         RabbitMqTopologyManager $topology,
     ): int {
         $connection = $connections->make();

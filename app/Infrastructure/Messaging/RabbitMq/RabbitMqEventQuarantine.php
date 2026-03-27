@@ -10,6 +10,7 @@ use App\Application\Events\Services\EventHistoryRecorder;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Domain\Events\DataTransferObjects\StoredEventData;
 use App\Domain\Events\Enums\EventStatus;
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Channel\AMQPChannel;
@@ -23,7 +24,7 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
     public function __construct(
         private readonly EventRepository $events,
         private readonly EventHistoryRecorder $history,
-        private readonly RabbitMqConnectionFactory $connections,
+        private readonly AmqpConnectionFactory $connections,
         private readonly RabbitMqEventMessageFactory $messages,
         private readonly RabbitMqQuarantinedMessageFactory $quarantinedMessages,
         private readonly RabbitMqTopologyManager $topology,

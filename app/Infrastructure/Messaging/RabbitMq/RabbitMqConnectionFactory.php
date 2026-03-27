@@ -2,9 +2,10 @@
 
 namespace App\Infrastructure\Messaging\RabbitMq;
 
+use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 
-final class RabbitMqConnectionFactory
+final class RabbitMqConnectionFactory implements AmqpConnectionFactory
 {
     public function make(): AMQPStreamConnection
     {
