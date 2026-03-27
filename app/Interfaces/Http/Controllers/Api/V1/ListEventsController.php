@@ -17,14 +17,7 @@ final class ListEventsController extends Controller
 
         return response()->json([
             'data' => EventResource::collection(Collection::make($events->items))->resolve($request),
-            'meta' => [
-                'count' => $events->count(),
-                'current_page' => $events->currentPage,
-                'per_page' => $events->perPage,
-                'total' => $events->total,
-                'last_page' => $events->lastPage,
-                'has_more_pages' => $events->hasMorePages(),
-            ],
+            'meta' => $events->meta(),
         ]);
     }
 }

@@ -20,14 +20,7 @@ final class ListEventHistoryController extends Controller
 
         return response()->json([
             'data' => EventHistoryEntryResource::collection(Collection::make($entries->items))->resolve($request),
-            'meta' => [
-                'count' => $entries->count(),
-                'current_page' => $entries->currentPage,
-                'per_page' => $entries->perPage,
-                'total' => $entries->total,
-                'last_page' => $entries->lastPage,
-                'has_more_pages' => $entries->hasMorePages(),
-            ],
+            'meta' => $entries->meta(),
         ]);
     }
 }

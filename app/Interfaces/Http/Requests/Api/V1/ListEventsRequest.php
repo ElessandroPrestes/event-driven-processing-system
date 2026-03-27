@@ -4,11 +4,14 @@ namespace App\Interfaces\Http\Requests\Api\V1;
 
 use App\Domain\Events\DataTransferObjects\EventListCriteriaData;
 use App\Domain\Events\Enums\EventStatus;
+use App\Interfaces\Http\Requests\Api\V1\Concerns\InteractsWithPagination;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 final class ListEventsRequest extends FormRequest
 {
+    use InteractsWithPagination;
+
     public function authorize(): bool
     {
         return true;
@@ -19,15 +22,12 @@ final class ListEventsRequest extends FormRequest
      */
     public function rules(): array
     {
-        $maxPerPage = max((int) config('event_pipeline.api.pagination.events.max_per_page', 100), 1);
-
         return [
             'status' => ['sometimes', 'array'],
             'status.*' => ['string', Rule::enum(EventStatus::class)],
             'event_name' => ['sometimes', 'string', Rule::in(config('event_pipeline.supported_events'))],
             'trace_id' => ['sometimes', 'string', 'max:128'],
-            'page' => ['sometimes', 'integer', 'min:1'],
-            'per_page' => ['sometimes', 'integer', 'min:1', "max:{$maxPerPage}"],
+            ...$this->paginationRules(),
         ];
     }
 
@@ -67,16 +67,9 @@ final class ListEventsRequest extends FormRequest
         return is_string($traceId) ? $traceId : null;
     }
 
-    public function currentPage(): int
+    protected function paginationConfigPath(string $suffix = ''): string
     {
-        return (int) $this->validated('page', 1);
-    }
-
-    public function perPage(): int
-    {
-        $defaultPerPage = max((int) config('event_pipeline.api.pagination.events.default_per_page', 20), 1);
-
-        return (int) $this->validated('per_page', $defaultPerPage);
+        return "event_pipeline.api.pagination.events{$suffix}";
     }
 
     public function criteria(): EventListCriteriaData
