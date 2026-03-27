@@ -37,16 +37,20 @@ final class InMemoryEventRepository implements EventRepository
      * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null): array
+    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
     {
         $events = array_values(array_filter(
             $this->events,
-            function (StoredEventData $event) use ($statuses, $eventName): bool {
+            function (StoredEventData $event) use ($statuses, $eventName, $traceId): bool {
                 if ($statuses !== [] && ! in_array($event->status->value, $statuses, true)) {
                     return false;
                 }
 
                 if ($eventName !== null && $event->eventName !== $eventName) {
+                    return false;
+                }
+
+                if ($traceId !== null && $event->traceId !== $traceId) {
                     return false;
                 }
 
@@ -64,6 +68,7 @@ final class InMemoryEventRepository implements EventRepository
         $timestamp = CarbonImmutable::now();
         $event = new StoredEventData(
             id: (string) Str::uuid(),
+            traceId: $payload->traceId,
             eventName: $payload->eventName,
             payload: $payload->payload,
             metadata: $payload->metadata,
@@ -90,6 +95,7 @@ final class InMemoryEventRepository implements EventRepository
     {
         return $this->mutate($eventId, fn (StoredEventData $event): StoredEventData => new StoredEventData(
             id: $event->id,
+            traceId: $event->traceId,
             eventName: $event->eventName,
             payload: $event->payload,
             metadata: $event->metadata,
@@ -112,6 +118,7 @@ final class InMemoryEventRepository implements EventRepository
     {
         return $this->mutate($eventId, fn (StoredEventData $event): StoredEventData => new StoredEventData(
             id: $event->id,
+            traceId: $event->traceId,
             eventName: $event->eventName,
             payload: $event->payload,
             metadata: $event->metadata,
@@ -134,6 +141,7 @@ final class InMemoryEventRepository implements EventRepository
     {
         return $this->mutate($eventId, fn (StoredEventData $event): StoredEventData => new StoredEventData(
             id: $event->id,
+            traceId: $event->traceId,
             eventName: $event->eventName,
             payload: $event->payload,
             metadata: $event->metadata,
@@ -159,6 +167,7 @@ final class InMemoryEventRepository implements EventRepository
     {
         return $this->mutate($eventId, fn (StoredEventData $event): StoredEventData => new StoredEventData(
             id: $event->id,
+            traceId: $event->traceId,
             eventName: $event->eventName,
             payload: $event->payload,
             metadata: $event->metadata,
@@ -181,6 +190,7 @@ final class InMemoryEventRepository implements EventRepository
     {
         return $this->mutate($eventId, fn (StoredEventData $event): StoredEventData => new StoredEventData(
             id: $event->id,
+            traceId: $event->traceId,
             eventName: $event->eventName,
             payload: $event->payload,
             metadata: $event->metadata,

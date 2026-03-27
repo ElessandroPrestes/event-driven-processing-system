@@ -53,6 +53,7 @@ final class StoreEventRequest extends FormRequest
             metadata: $metadata,
             idempotencyKey: $this->string('idempotency_key')->toString(),
             occurredAt: $occurredAt === null ? null : CarbonImmutable::parse($occurredAt),
+            traceId: (string) $this->attributes->get('trace_id'),
         );
     }
 }

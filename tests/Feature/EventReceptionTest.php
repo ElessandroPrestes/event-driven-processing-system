@@ -159,3 +159,53 @@ it('shows a stored event by id', function (): void {
         ->assertJsonPath('data.event_name', 'user.created')
         ->assertJsonPath('data.status', 'queued');
 });
+
+it('generates and exposes a trace id for ingested events', function (): void {
+    $response = $this
+        ->withHeaders(eventIngestHeaders('evt-trace-001'))
+        ->postJson('/api/v1/events', [
+            'event_name' => 'payment.received',
+            'payload' => [
+                'payment_id' => 'trace-001',
+            ],
+        ]);
+
+    $response->assertAccepted();
+
+    $traceHeader = (string) config('event_pipeline.observability.trace_header');
+    $traceId = $response->headers->get($traceHeader);
+
+    expect($traceId)->not->toBeEmpty()
+        ->and($response->json('data.trace_id'))->toBe($traceId)
+        ->and($this->events->findByIdempotencyKey('evt-trace-001')?->traceId)->toBe($traceId)
+        ->and($this->publisher->published[0]->traceId ?? null)->toBe($traceId);
+});
+
+it('preserves the provided trace id and allows filtering events by trace', function (): void {
+    $traceId = 'trace-ingest-001';
+
+    $this->withHeaders(eventIngestHeaders('evt-trace-filter-001', null, $traceId))
+        ->postJson('/api/v1/events', [
+            'event_name' => 'user.created',
+            'payload' => [
+                'user_id' => 'trace-filter-001',
+            ],
+        ])
+        ->assertAccepted();
+
+    $this->withHeaders(eventIngestHeaders('evt-trace-filter-002', null, 'trace-ingest-002'))
+        ->postJson('/api/v1/events', [
+            'event_name' => 'user.created',
+            'payload' => [
+                'user_id' => 'trace-filter-002',
+            ],
+        ])
+        ->assertAccepted();
+
+    $this->withHeaders(eventOperationsHeaders(null, 'trace-operation-001'))
+        ->getJson("/api/v1/events?trace_id={$traceId}")
+        ->assertOk()
+        ->assertJsonPath('meta.count', 1)
+        ->assertJsonPath('data.0.trace_id', $traceId)
+        ->assertJsonPath('data.0.payload.user_id', 'trace-filter-001');
+});

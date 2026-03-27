@@ -22,6 +22,7 @@ final class ListEventsRequest extends FormRequest
             'status' => ['sometimes', 'array'],
             'status.*' => ['string', Rule::enum(EventStatus::class)],
             'event_name' => ['sometimes', 'string', Rule::in(config('event_pipeline.supported_events'))],
+            'trace_id' => ['sometimes', 'string', 'max:128'],
         ];
     }
 
@@ -52,5 +53,12 @@ final class ListEventsRequest extends FormRequest
         $eventName = $this->validated('event_name');
 
         return is_string($eventName) ? $eventName : null;
+    }
+
+    public function traceId(): ?string
+    {
+        $traceId = $this->validated('trace_id');
+
+        return is_string($traceId) ? $traceId : null;
     }
 }

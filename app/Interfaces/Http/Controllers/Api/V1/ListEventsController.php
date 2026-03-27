@@ -13,7 +13,7 @@ final class ListEventsController extends Controller
 {
     public function __invoke(ListEventsRequest $request, ListEventsAction $action): JsonResponse
     {
-        $events = $action->handle($request->statuses(), $request->eventName());
+        $events = $action->handle($request->statuses(), $request->eventName(), $request->traceId());
 
         return response()->json([
             'data' => EventResource::collection(Collection::make($events))->resolve($request),

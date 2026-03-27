@@ -32,6 +32,7 @@ final class RabbitMqEventPublisher implements EventPublisher
             $message = new AMQPMessage(
                 json_encode([
                     'id' => $event->id,
+                    'trace_id' => $event->traceId,
                     'event_name' => $event->eventName,
                     'payload' => $event->payload,
                     'metadata' => $event->metadata,
@@ -48,6 +49,7 @@ final class RabbitMqEventPublisher implements EventPublisher
                     'timestamp' => time(),
                     'application_headers' => new AMQPTable([
                         'idempotency_key' => $event->idempotencyKey,
+                        'trace_id' => $event->traceId,
                     ]),
                 ],
             );

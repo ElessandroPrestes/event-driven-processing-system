@@ -35,6 +35,10 @@ return [
         ],
     ],
 
+    'observability' => [
+        'trace_header' => env('EVENT_TRACE_HEADER', 'X-Trace-Id'),
+    ],
+
     'consumer' => [
         'max_attempts' => (int) env('EVENT_CONSUMER_MAX_ATTEMPTS', 3),
         'idle_timeout' => (int) env('EVENT_CONSUMER_IDLE_TIMEOUT', 5),

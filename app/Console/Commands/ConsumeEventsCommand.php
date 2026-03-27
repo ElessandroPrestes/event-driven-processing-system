@@ -5,9 +5,11 @@ namespace App\Console\Commands;
 use App\Application\Events\Actions\ProcessQueuedEventAction;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqTopologyManager;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Message\AMQPMessage;
+use PhpAmqpLib\Wire\AMQPTable;
 
 final class ConsumeEventsCommand extends Command
 {
@@ -70,31 +72,45 @@ final class ConsumeEventsCommand extends Command
 
     private function processMessage(AMQPMessage $message, ProcessQueuedEventAction $action, int $maxAttempts): void
     {
+        $traceId = $this->extractTraceId($message);
+
+        if ($traceId !== null) {
+            Log::withContext([
+                'trace_id' => $traceId,
+            ]);
+        }
+
         $eventId = $this->extractEventId($message);
 
-        if ($eventId === null) {
+        try {
+            if ($eventId === null) {
+                $message->ack();
+
+                return;
+            }
+
+            $result = $action->handle($eventId, $maxAttempts);
+
+            if ($result->shouldRequeue) {
+                $message->nack(false, true);
+
+                return;
+            }
+
             $message->ack();
 
-            return;
-        }
-
-        $result = $action->handle($eventId, $maxAttempts);
-
-        if ($result->shouldRequeue) {
-            $message->nack(false, true);
-
-            return;
-        }
-
-        $message->ack();
-
-        if ($result->event !== null) {
-            $this->line(sprintf(
-                '[%s] Evento %s finalizado com status %s',
-                now()->toDateTimeString(),
-                $result->event->id,
-                $result->event->status->value,
-            ));
+            if ($result->event !== null) {
+                $this->line(sprintf(
+                    '[%s] Evento %s finalizado com status %s',
+                    now()->toDateTimeString(),
+                    $result->event->id,
+                    $result->event->status->value,
+                ));
+            }
+        } finally {
+            if ($traceId !== null) {
+                Log::withoutContext(['trace_id']);
+            }
         }
     }
 
@@ -115,5 +131,31 @@ final class ConsumeEventsCommand extends Command
         $eventId = $payload['id'] ?? null;
 
         return is_string($eventId) && $eventId !== '' ? $eventId : null;
+    }
+
+    private function extractTraceId(AMQPMessage $message): ?string
+    {
+        if ($message->has('application_headers')) {
+            $headers = $message->get('application_headers');
+
+            if ($headers instanceof AMQPTable) {
+                $nativeHeaders = $headers->getNativeData();
+                $traceId = $nativeHeaders['trace_id'] ?? null;
+
+                if (is_string($traceId) && $traceId !== '') {
+                    return $traceId;
+                }
+            }
+        }
+
+        $payload = json_decode($message->getBody(), true);
+
+        if (! is_array($payload)) {
+            return null;
+        }
+
+        $traceId = $payload['trace_id'] ?? null;
+
+        return is_string($traceId) && $traceId !== '' ? $traceId : null;
     }
 }

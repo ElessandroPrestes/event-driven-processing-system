@@ -16,7 +16,7 @@ interface EventRepository
      * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null): array;
+    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array;
 
     public function create(EventPayloadData $payload): StoredEventData;
 

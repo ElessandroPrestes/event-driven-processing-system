@@ -21,6 +21,7 @@ final class EventResource extends JsonResource
 
         return [
             'id' => $event->id,
+            'trace_id' => $event->traceId,
             'event_name' => $event->eventName,
             'status' => $event->status->value,
             'idempotency_key' => $event->idempotencyKey,

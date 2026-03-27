@@ -15,8 +15,8 @@ final class ListEventsAction
      * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
-    public function handle(array $statuses = [], ?string $eventName = null): array
+    public function handle(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
     {
-        return $this->events->list($statuses, $eventName);
+        return $this->events->list($statuses, $eventName, $traceId);
     }
 }

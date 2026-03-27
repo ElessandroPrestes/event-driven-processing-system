@@ -32,117 +32,129 @@ final class ProcessQueuedEventAction
             return ProcessEventResult::skipped();
         }
 
-        if (in_array($event->status, [EventStatus::PROCESSED, EventStatus::PROCESSING_FAILED], true)) {
-            Log::info('event.processing_skipped', [
-                'event_id' => $event->id,
-                'event_name' => $event->eventName,
-                'status' => $event->status->value,
+        if ($event->traceId !== null) {
+            Log::withContext([
+                'trace_id' => $event->traceId,
             ]);
-
-            return ProcessEventResult::skipped();
         }
 
-        $processingEvent = $this->events->markAsProcessing($event->id, CarbonImmutable::now());
-
-        Log::info('event.consumed', [
-            'event_id' => $processingEvent->id,
-            'event_name' => $processingEvent->eventName,
-            'status' => $processingEvent->status->value,
-            'processing_attempts' => $processingEvent->processingAttempts,
-        ]);
-
-        $this->history->record(
-            event: $processingEvent,
-            action: 'processing_started',
-            source: 'worker',
-            fromStatus: $event->status,
-            context: [
-                'processing_attempts' => $processingEvent->processingAttempts,
-            ],
-        );
-
         try {
-            $processingResult = $this->processors
-                ->for($processingEvent->eventName)
-                ->process($processingEvent);
+            if (in_array($event->status, [EventStatus::PROCESSED, EventStatus::PROCESSING_FAILED], true)) {
+                Log::info('event.processing_skipped', [
+                    'event_id' => $event->id,
+                    'event_name' => $event->eventName,
+                    'status' => $event->status->value,
+                ]);
 
-            $processedEvent = $this->events->markAsProcessed(
-                $processingEvent->id,
-                CarbonImmutable::now(),
-                $processingResult,
-            );
+                return ProcessEventResult::skipped();
+            }
 
-            Log::info('event.processed', [
-                'event_id' => $processedEvent->id,
-                'event_name' => $processedEvent->eventName,
-                'status' => $processedEvent->status->value,
-                'processed_at' => $processedEvent->processedAt?->toIso8601String(),
+            $processingEvent = $this->events->markAsProcessing($event->id, CarbonImmutable::now());
+
+            Log::info('event.consumed', [
+                'event_id' => $processingEvent->id,
+                'event_name' => $processingEvent->eventName,
+                'status' => $processingEvent->status->value,
+                'processing_attempts' => $processingEvent->processingAttempts,
             ]);
 
             $this->history->record(
-                event: $processedEvent,
-                action: 'processed',
+                event: $processingEvent,
+                action: 'processing_started',
                 source: 'worker',
-                fromStatus: $processingEvent->status,
+                fromStatus: $event->status,
                 context: [
-                    'processing_attempts' => $processedEvent->processingAttempts,
-                    'processing_result' => $processingResult,
+                    'processing_attempts' => $processingEvent->processingAttempts,
                 ],
             );
 
-            return ProcessEventResult::processed($processedEvent);
-        } catch (Throwable $exception) {
-            if ($processingEvent->processingAttempts < $maxAttempts) {
-                $requeuedEvent = $this->events->markAsQueued(
+            try {
+                $processingResult = $this->processors
+                    ->for($processingEvent->eventName)
+                    ->process($processingEvent);
+
+                $processedEvent = $this->events->markAsProcessed(
                     $processingEvent->id,
                     CarbonImmutable::now(),
-                    $exception->getMessage(),
+                    $processingResult,
                 );
 
-                Log::warning('event.requeued', [
-                    'event_id' => $requeuedEvent->id,
-                    'event_name' => $requeuedEvent->eventName,
-                    'status' => $requeuedEvent->status->value,
-                    'processing_attempts' => $processingEvent->processingAttempts,
+                Log::info('event.processed', [
+                    'event_id' => $processedEvent->id,
+                    'event_name' => $processedEvent->eventName,
+                    'status' => $processedEvent->status->value,
+                    'processed_at' => $processedEvent->processedAt?->toIso8601String(),
+                ]);
+
+                $this->history->record(
+                    event: $processedEvent,
+                    action: 'processed',
+                    source: 'worker',
+                    fromStatus: $processingEvent->status,
+                    context: [
+                        'processing_attempts' => $processedEvent->processingAttempts,
+                        'processing_result' => $processingResult,
+                    ],
+                );
+
+                return ProcessEventResult::processed($processedEvent);
+            } catch (Throwable $exception) {
+                if ($processingEvent->processingAttempts < $maxAttempts) {
+                    $requeuedEvent = $this->events->markAsQueued(
+                        $processingEvent->id,
+                        CarbonImmutable::now(),
+                        $exception->getMessage(),
+                    );
+
+                    Log::warning('event.requeued', [
+                        'event_id' => $requeuedEvent->id,
+                        'event_name' => $requeuedEvent->eventName,
+                        'status' => $requeuedEvent->status->value,
+                        'processing_attempts' => $processingEvent->processingAttempts,
+                        'error' => $exception->getMessage(),
+                    ]);
+
+                    $this->history->record(
+                        event: $requeuedEvent,
+                        action: 'requeued',
+                        source: 'worker',
+                        fromStatus: $processingEvent->status,
+                        context: [
+                            'processing_attempts' => $processingEvent->processingAttempts,
+                            'error' => $exception->getMessage(),
+                        ],
+                    );
+
+                    return ProcessEventResult::retry($requeuedEvent);
+                }
+
+                $failedEvent = $this->events->markAsProcessingFailed($processingEvent->id, $exception->getMessage());
+
+                Log::error('event.processing_failed', [
+                    'event_id' => $failedEvent->id,
+                    'event_name' => $failedEvent->eventName,
+                    'status' => $failedEvent->status->value,
+                    'processing_attempts' => $failedEvent->processingAttempts,
                     'error' => $exception->getMessage(),
                 ]);
 
                 $this->history->record(
-                    event: $requeuedEvent,
-                    action: 'requeued',
+                    event: $failedEvent,
+                    action: 'processing_failed',
                     source: 'worker',
                     fromStatus: $processingEvent->status,
                     context: [
-                        'processing_attempts' => $processingEvent->processingAttempts,
+                        'processing_attempts' => $failedEvent->processingAttempts,
                         'error' => $exception->getMessage(),
                     ],
                 );
 
-                return ProcessEventResult::retry($requeuedEvent);
+                return ProcessEventResult::failed($failedEvent);
             }
-
-            $failedEvent = $this->events->markAsProcessingFailed($processingEvent->id, $exception->getMessage());
-
-            Log::error('event.processing_failed', [
-                'event_id' => $failedEvent->id,
-                'event_name' => $failedEvent->eventName,
-                'status' => $failedEvent->status->value,
-                'processing_attempts' => $failedEvent->processingAttempts,
-                'error' => $exception->getMessage(),
-            ]);
-
-            $this->history->record(
-                event: $failedEvent,
-                action: 'processing_failed',
-                source: 'worker',
-                fromStatus: $processingEvent->status,
-                context: [
-                    'processing_attempts' => $failedEvent->processingAttempts,
-                    'error' => $exception->getMessage(),
-                ],
-            );
-
-            return ProcessEventResult::failed($failedEvent);
+        } finally {
+            if ($event->traceId !== null) {
+                Log::withoutContext(['trace_id']);
+            }
         }
     }
 }

@@ -32,7 +32,7 @@ final class EloquentEventRepository implements EventRepository
      * @param  array<int, string>  $statuses
      * @return array<int, StoredEventData>
      */
-    public function list(array $statuses = [], ?string $eventName = null): array
+    public function list(array $statuses = [], ?string $eventName = null, ?string $traceId = null): array
     {
         $query = EventRecord::query()
             ->orderByDesc('created_at');
@@ -45,6 +45,10 @@ final class EloquentEventRepository implements EventRepository
             $query->where('event_name', $eventName);
         }
 
+        if ($traceId !== null) {
+            $query->where('trace_id', $traceId);
+        }
+
         return $query
             ->get()
             ->map(fn (EventRecord $record): StoredEventData => $this->toStoredEventData($record))
@@ -55,6 +59,7 @@ final class EloquentEventRepository implements EventRepository
     {
         $record = EventRecord::query()->create([
             'id' => (string) Str::uuid(),
+            'trace_id' => $payload->traceId,
             'event_name' => $payload->eventName,
             'payload' => $payload->payload,
             'metadata' => $payload->metadata,
@@ -172,6 +177,7 @@ final class EloquentEventRepository implements EventRepository
 
         return new StoredEventData(
             id: $record->id,
+            traceId: $record->trace_id,
             eventName: $record->event_name,
             payload: $payload,
             metadata: $metadata,

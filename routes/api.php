@@ -9,7 +9,7 @@ use App\Interfaces\Http\Controllers\Api\V1\ShowEventController;
 use App\Interfaces\Http\Controllers\Api\V1\StoreEventController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->group(function (): void {
+Route::prefix('v1')->middleware('event.pipeline.trace')->group(function (): void {
     Route::get('/health', HealthCheckController::class)
         ->name('api.v1.health');
 

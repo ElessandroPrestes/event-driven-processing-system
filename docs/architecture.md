@@ -23,4 +23,5 @@ Estabelecer a base do `eventflow-platform` como um backend Laravel orientado a e
 - Manter imagem de aplicação com dependências mínimas para reduzir superfície de ataque.
 - Evitar exposição desnecessária de detalhes internos no endpoint de health.
 - Proteger endpoints de ingestão e operação com chaves de API distintas para reduzir exposição indevida de payloads e comandos operacionais.
+- Propagar `trace_id` entre HTTP, persistência e RabbitMQ para ampliar rastreabilidade e investigação operacional sem depender apenas de timestamps.
 - Preparar separação de camadas para reduzir acoplamento e facilitar validação futura de entrada, autorização e rastreabilidade.

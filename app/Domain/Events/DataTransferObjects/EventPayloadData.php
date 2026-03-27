@@ -16,6 +16,7 @@ final readonly class EventPayloadData
         public ?array $metadata,
         public string $idempotencyKey,
         public ?CarbonImmutable $occurredAt,
+        public string $traceId,
     ) {}
 
     public function contentHash(): string

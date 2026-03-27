@@ -37,6 +37,7 @@ final class RetryEventAction
         Log::info('event.retry_requested', [
             'event_id' => $event->id,
             'event_name' => $event->eventName,
+            'event_trace_id' => $event->traceId,
             'status' => $event->status->value,
             'processing_attempts' => $event->processingAttempts,
         ]);
@@ -59,6 +60,7 @@ final class RetryEventAction
             Log::error('event.retry_enqueue_failed', [
                 'event_id' => $failedEvent->id,
                 'event_name' => $failedEvent->eventName,
+                'event_trace_id' => $failedEvent->traceId,
                 'status' => $failedEvent->status->value,
                 'error' => $exception->getMessage(),
             ]);
@@ -81,6 +83,7 @@ final class RetryEventAction
         Log::info('event.retry_enqueued', [
             'event_id' => $queuedEvent->id,
             'event_name' => $queuedEvent->eventName,
+            'event_trace_id' => $queuedEvent->traceId,
             'previous_status' => $event->status->value,
             'status' => $queuedEvent->status->value,
             'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),

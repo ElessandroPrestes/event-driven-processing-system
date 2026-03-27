@@ -18,6 +18,7 @@ final class EventRecord extends Model
      */
     protected $fillable = [
         'id',
+        'trace_id',
         'event_name',
         'payload',
         'metadata',

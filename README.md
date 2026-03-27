@@ -55,6 +55,11 @@ O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fil
 - operacao e consultas: enviar `X-Operations-Api-Key` com o valor configurado em `EVENT_OPERATIONS_API_KEY`
 - `GET /api/v1/health` permanece publico para health check
 
+## Correlacao e trace
+- a API aceita o header opcional `X-Trace-Id` para correlacionar a requisicao com o evento persistido e com a mensagem publicada no RabbitMQ
+- quando o header nao e enviado, a aplicacao gera um `trace_id` automaticamente e o devolve no header de resposta `X-Trace-Id`
+- a listagem de eventos aceita o filtro `trace_id` para localizar todos os registros ligados a uma mesma correlacao
+
 ## Qualidade
 ```bash
 composer lint
@@ -69,6 +74,7 @@ curl --request POST \
   --url http://localhost:8080/api/v1/events \
   --header 'Content-Type: application/json' \
   --header 'X-Ingest-Api-Key: change-me-ingest' \
+  --header 'X-Trace-Id: trace-user-created-001' \
   --header 'Idempotency-Key: evt-user-created-001' \
   --data '{
     "event_name": "user.created",
@@ -83,7 +89,7 @@ curl --request POST \
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed'
+  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed&trace_id=trace-user-created-001'
 ```
 
 ## Exemplo de resumo operacional
@@ -108,4 +114,4 @@ curl --request GET \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual e historico de transicoes, e a autenticacao por chave de API com escopos separados para ingestao e operacao. Evolucoes futuras incluem telemetria externa e politicas de resiliencia ainda mais refinadas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, reenfileiramento manual e historico de transicoes, a autenticacao por chave de API com escopos separados e a correlacao distribuida por `trace_id`. Evolucoes futuras incluem exportacao de telemetria externa e politicas de resiliencia ainda mais refinadas.

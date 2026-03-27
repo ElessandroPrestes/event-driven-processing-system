@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.6.0
-  description: API para recepcao, processamento assincrono, operacao, historico, consulta e autenticacao por chave.
+  version: 0.7.0
+  description: API para recepcao, processamento assincrono, operacao, historico, autenticacao por chave e correlacao por trace_id.
 servers:
   - url: http://localhost:8080
 paths:
@@ -18,6 +18,7 @@ paths:
       security:
         - OperationsApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: query
           name: status
           required: false
@@ -29,6 +30,12 @@ paths:
           required: false
           schema:
             type: string
+        - in: query
+          name: trace_id
+          required: false
+          schema:
+            type: string
+            maxLength: 128
       responses:
         '200':
           description: Lista de eventos
@@ -39,6 +46,7 @@ paths:
       security:
         - IngestApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: header
           name: Idempotency-Key
           required: true
@@ -69,6 +77,7 @@ paths:
       security:
         - OperationsApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: query
           name: event_name
           required: false
@@ -85,6 +94,7 @@ paths:
       security:
         - OperationsApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: path
           name: id
           required: true
@@ -104,6 +114,7 @@ paths:
       security:
         - OperationsApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: path
           name: id
           required: true
@@ -123,6 +134,7 @@ paths:
       security:
         - OperationsApiKey: []
       parameters:
+        - $ref: '#/components/parameters/TraceIdHeader'
         - in: path
           name: id
           required: true
@@ -141,6 +153,14 @@ paths:
         '503':
           description: Falha ao reenfileirar o evento no RabbitMQ
 components:
+  parameters:
+    TraceIdHeader:
+      in: header
+      name: X-Trace-Id
+      required: false
+      schema:
+        type: string
+        maxLength: 128
   securitySchemes:
     IngestApiKey:
       type: apiKey

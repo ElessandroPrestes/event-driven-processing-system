@@ -14,6 +14,7 @@ final readonly class StoredEventData
      */
     public function __construct(
         public string $id,
+        public ?string $traceId,
         public string $eventName,
         public array $payload,
         public ?array $metadata,
