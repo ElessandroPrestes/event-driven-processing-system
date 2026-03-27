@@ -8,6 +8,7 @@ RUN apt-get update \
         git \
         libicu-dev \
         libpq-dev \
+        libsqlite3-dev \
         librabbitmq-dev \
         libzip-dev \
         netcat-openbsd \
@@ -16,7 +17,7 @@ RUN apt-get update \
         unzip \
     && pecl install amqp redis \
     && docker-php-ext-enable amqp redis \
-    && docker-php-ext-install bcmath intl pcntl pdo_pgsql pgsql zip \
+    && docker-php-ext-install bcmath intl pcntl pdo_pgsql pdo_sqlite pgsql zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

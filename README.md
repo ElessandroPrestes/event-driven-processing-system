@@ -30,6 +30,8 @@ docker compose up --build
 Serviços expostos:
 - API Laravel: `http://localhost:8080`
 - Health check da API: `http://localhost:8080/api/v1/health`
+- Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
+- Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
 - Health nativo do Laravel: `http://localhost:8080/up`
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
@@ -50,5 +52,20 @@ composer test
 composer quality
 ```
 
+## Exemplo de envio de evento
+```bash
+curl --request POST \
+  --url http://localhost:8080/api/v1/events \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: evt-user-created-001' \
+  --data '{
+    "event_name": "user.created",
+    "payload": {
+      "user_id": "9a1fd14b-4ce9-4321-a8af-b8d98d67a111",
+      "email": "user@example.com"
+    }
+  }'
+```
+
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local e a linha de base de qualidade. Publicação de eventos, consumers RabbitMQ, persistência de eventos processados e documentação OpenAPI serão implementados nas próximas etapas.
+Esta etapa estabelece a base do backend, a infraestrutura local, a linha de base de qualidade e a recepcao inicial de eventos. Consumers RabbitMQ e o processamento assincrono dos eventos seguem para as proximas etapas.

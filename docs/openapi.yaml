@@ -1,0 +1,79 @@
+openapi: 3.1.0
+info:
+  title: eventflow-platform API
+  version: 0.2.0
+  description: API inicial para recepcao, persistencia e consulta de eventos.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/health:
+    get:
+      summary: Verifica a saude da aplicacao
+      responses:
+        '200':
+          description: Aplicacao saudavel
+  /api/v1/events:
+    post:
+      summary: Recebe um novo evento e o publica no RabbitMQ
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StoreEventRequest'
+      responses:
+        '202':
+          description: Evento aceito e enfileirado
+        '200':
+          description: Evento duplicado retornado por idempotencia
+        '409':
+          description: Chave de idempotencia reutilizada com payload diferente
+        '422':
+          description: Payload invalido
+        '503':
+          description: Falha ao publicar o evento no RabbitMQ
+  /api/v1/events/{id}:
+    get:
+      summary: Consulta um evento recebido pelo identificador
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Evento encontrado
+        '404':
+          description: Evento nao encontrado
+components:
+  schemas:
+    StoreEventRequest:
+      type: object
+      required:
+        - event_name
+        - payload
+      properties:
+        event_name:
+          type: string
+          enum:
+            - user.created
+            - payment.received
+            - invoice.generated
+            - notification.requested
+        payload:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+        occurred_at:
+          type: string
+          format: date-time
