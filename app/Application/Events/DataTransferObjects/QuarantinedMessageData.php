@@ -27,6 +27,25 @@ final readonly class QuarantinedMessageData
         public ?string $replayStrategy = null,
     ) {}
 
+    public function withPersistedEventStatus(?EventStatus $persistedEventStatus): self
+    {
+        return new self(
+            messageId: $this->messageId,
+            eventId: $this->eventId,
+            traceId: $this->traceId,
+            eventName: $this->eventName,
+            exchange: $this->exchange,
+            routingKey: $this->routingKey,
+            body: $this->body,
+            rawBody: $this->rawBody,
+            headers: $this->headers,
+            deadLetterHistory: $this->deadLetterHistory,
+            deadLetterReason: $this->deadLetterReason,
+            persistedEventStatus: $persistedEventStatus,
+            replayStrategy: $this->replayStrategy,
+        );
+    }
+
     public function withReplayStrategy(string $replayStrategy, ?EventStatus $persistedEventStatus = null): self
     {
         return new self(

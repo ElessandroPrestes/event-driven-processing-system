@@ -14,7 +14,6 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Log;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Message\AMQPMessage;
-use PhpAmqpLib\Wire\AMQPTable;
 use Throwable;
 
 final class RabbitMqEventQuarantine implements EventQuarantineManager
@@ -26,6 +25,7 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
         private readonly EventHistoryRecorder $history,
         private readonly RabbitMqConnectionFactory $connections,
         private readonly RabbitMqEventMessageFactory $messages,
+        private readonly RabbitMqQuarantinedMessageFactory $quarantinedMessages,
         private readonly RabbitMqTopologyManager $topology,
     ) {}
 
@@ -217,10 +217,12 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
 
     private function replayRawMessage(AMQPChannel $channel, QuarantinedMessageData $snapshot): QuarantinedMessageData
     {
+        $replayedAt = CarbonImmutable::now()->toIso8601String();
+
         $channel->basic_publish(
-            msg: $this->makeReplayMessage($snapshot),
+            msg: $this->quarantinedMessages->makeReplayMessage($snapshot, $replayedAt),
             exchange: (string) config('event_pipeline.rabbitmq.exchange'),
-            routing_key: $this->resolveReplayRoutingKey($snapshot),
+            routing_key: $this->quarantinedMessages->resolveReplayRoutingKey($snapshot),
         );
 
         return $snapshot->withReplayStrategy('raw_message');
@@ -234,212 +236,9 @@ final class RabbitMqEventQuarantine implements EventQuarantineManager
 
     private function snapshotMessage(AMQPMessage $message): QuarantinedMessageData
     {
-        $body = json_decode($message->getBody(), true);
-        $decodedBody = is_array($body) ? $body : null;
-        $headers = $this->extractHeaders($message);
-        $eventId = $this->extractEventId($message, $decodedBody);
-        $traceId = $this->extractTraceId($headers, $decodedBody);
-        $eventName = $this->extractEventName($message, $decodedBody);
-        $deadLetterHistory = $this->extractDeadLetterHistory($headers);
-        $persistedEvent = $eventId === null ? null : $this->events->findById($eventId);
+        $snapshot = $this->quarantinedMessages->fromAmqpMessage($message);
+        $persistedEvent = $snapshot->eventId === null ? null : $this->events->findById($snapshot->eventId);
 
-        return new QuarantinedMessageData(
-            messageId: $this->extractMessageId($message),
-            eventId: $eventId,
-            traceId: $traceId,
-            eventName: $eventName,
-            exchange: $message->getExchange(),
-            routingKey: $message->getRoutingKey(),
-            body: $decodedBody,
-            rawBody: $message->getBody(),
-            headers: $headers,
-            deadLetterHistory: $deadLetterHistory,
-            deadLetterReason: $this->extractDeadLetterReason($headers, $deadLetterHistory),
-            persistedEventStatus: $persistedEvent?->status,
-        );
-    }
-
-    private function makeReplayMessage(QuarantinedMessageData $snapshot): AMQPMessage
-    {
-        $properties = [
-            'content_type' => 'application/json',
-            'delivery_mode' => AMQPMessage::DELIVERY_MODE_PERSISTENT,
-            'timestamp' => time(),
-        ];
-
-        if ($snapshot->messageId !== null) {
-            $properties['message_id'] = $snapshot->messageId;
-        }
-
-        if ($snapshot->eventName !== null) {
-            $properties['type'] = $snapshot->eventName;
-        }
-
-        $headers = $this->sanitizeReplayHeaders($snapshot->headers);
-        $headers['quarantine_replay_source'] = 'api';
-        $headers['quarantine_replayed_at'] = CarbonImmutable::now()->toIso8601String();
-
-        $properties['application_headers'] = new AMQPTable($headers);
-
-        return new AMQPMessage($snapshot->rawBody, $properties);
-    }
-
-    private function resolveReplayRoutingKey(QuarantinedMessageData $snapshot): string
-    {
-        if ($snapshot->eventName !== null && $snapshot->eventName !== '') {
-            return $snapshot->eventName;
-        }
-
-        foreach ($snapshot->deadLetterHistory ?? [] as $entry) {
-            $routingKeys = $entry['routing-keys'] ?? null;
-
-            if (is_array($routingKeys) && isset($routingKeys[0]) && is_string($routingKeys[0]) && $routingKeys[0] !== '') {
-                return $routingKeys[0];
-            }
-        }
-
-        return $snapshot->routingKey;
-    }
-
-    private function extractMessageId(AMQPMessage $message): ?string
-    {
-        if (! $message->has('message_id')) {
-            return null;
-        }
-
-        $messageId = $message->get('message_id');
-
-        return is_string($messageId) && $messageId !== '' ? $messageId : null;
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $body
-     */
-    private function extractEventId(AMQPMessage $message, ?array $body): ?string
-    {
-        $messageId = $this->extractMessageId($message);
-
-        if ($messageId !== null) {
-            return $messageId;
-        }
-
-        $eventId = $body['id'] ?? null;
-
-        return is_string($eventId) && $eventId !== '' ? $eventId : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $headers
-     * @param  array<string, mixed>|null  $body
-     */
-    private function extractTraceId(array $headers, ?array $body): ?string
-    {
-        $traceId = $headers['trace_id'] ?? $body['trace_id'] ?? null;
-
-        return is_string($traceId) && $traceId !== '' ? $traceId : null;
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $body
-     */
-    private function extractEventName(AMQPMessage $message, ?array $body): ?string
-    {
-        if ($message->has('type')) {
-            $type = $message->get('type');
-
-            if (is_string($type) && $type !== '') {
-                return $type;
-            }
-        }
-
-        $eventName = $body['event_name'] ?? null;
-
-        return is_string($eventName) && $eventName !== '' ? $eventName : null;
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function extractHeaders(AMQPMessage $message): array
-    {
-        if (! $message->has('application_headers')) {
-            return [];
-        }
-
-        $headers = $message->get('application_headers');
-
-        if (! $headers instanceof AMQPTable) {
-            return [];
-        }
-
-        $normalized = $this->normalizeValue($headers->getNativeData());
-
-        return is_array($normalized) ? $normalized : [];
-    }
-
-    /**
-     * @param  array<string, mixed>  $headers
-     * @return array<int, array<string, mixed>>|null
-     */
-    private function extractDeadLetterHistory(array $headers): ?array
-    {
-        $history = $headers['x-death'] ?? null;
-
-        if (! is_array($history)) {
-            return null;
-        }
-
-        $entries = array_values(array_filter($history, static fn (mixed $entry): bool => is_array($entry)));
-
-        return $entries === [] ? null : $entries;
-    }
-
-    /**
-     * @param  array<string, mixed>  $headers
-     * @param  array<int, array<string, mixed>>|null  $deadLetterHistory
-     */
-    private function extractDeadLetterReason(array $headers, ?array $deadLetterHistory): ?string
-    {
-        $firstDeathReason = $headers['x-first-death-reason'] ?? null;
-
-        if (is_string($firstDeathReason) && $firstDeathReason !== '') {
-            return $firstDeathReason;
-        }
-
-        $reason = $deadLetterHistory[0]['reason'] ?? null;
-
-        return is_string($reason) && $reason !== '' ? $reason : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $headers
-     * @return array<string, mixed>
-     */
-    private function sanitizeReplayHeaders(array $headers): array
-    {
-        return array_filter(
-            $headers,
-            static fn (string $key): bool => ! str_starts_with($key, 'x-'),
-            ARRAY_FILTER_USE_KEY,
-        );
-    }
-
-    private function normalizeValue(mixed $value): mixed
-    {
-        if ($value instanceof AMQPTable) {
-            return $this->normalizeValue($value->getNativeData());
-        }
-
-        if (is_array($value)) {
-            $normalized = [];
-
-            foreach ($value as $key => $item) {
-                $normalized[$key] = $this->normalizeValue($item);
-            }
-
-            return $normalized;
-        }
-
-        return $value;
+        return $snapshot->withPersistedEventStatus($persistedEvent?->status);
     }
 }
