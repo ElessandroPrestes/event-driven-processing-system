@@ -31,8 +31,10 @@ Serviços expostos:
 - API Laravel: `http://localhost:8080`
 - Health check da API: `http://localhost:8080/api/v1/health`
 - Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
+- Resumo operacional: `GET http://localhost:8080/api/v1/events/summary`
 - Consulta de eventos: `GET http://localhost:8080/api/v1/events`
 - Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
+- Reenfileiramento manual: `POST http://localhost:8080/api/v1/events/{id}/retry`
 - Health nativo do Laravel: `http://localhost:8080/up`
 - PostgreSQL: `localhost:5432`
 - Redis: `localhost:6379`
@@ -76,5 +78,17 @@ curl --request GET \
   --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed'
 ```
 
+## Exemplo de resumo operacional
+```bash
+curl --request GET \
+  --url 'http://localhost:8080/api/v1/events/summary'
+```
+
+## Exemplo de reenfileiramento manual
+```bash
+curl --request POST \
+  --url http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/retry
+```
+
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos e o processamento assincrono por worker RabbitMQ. Evolucoes futuras incluem politicas mais sofisticadas de retry, observabilidade operacional ampliada e endpoints adicionais de negocio.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ e os controles operacionais de resumo e reenfileiramento manual. Evolucoes futuras incluem autenticacao, telemetria externa e politicas de resiliencia ainda mais refinadas.

@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: eventflow-platform API
-  version: 0.3.0
-  description: API para recepcao, processamento assincrono e consulta de eventos.
+  version: 0.4.0
+  description: API para recepcao, processamento assincrono, operacao e consulta de eventos.
 servers:
   - url: http://localhost:8080
 paths:
@@ -55,6 +55,18 @@ paths:
           description: Payload invalido
         '503':
           description: Falha ao publicar o evento no RabbitMQ
+  /api/v1/events/summary:
+    get:
+      summary: Retorna um resumo operacional do pipeline de eventos
+      parameters:
+        - in: query
+          name: event_name
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resumo operacional calculado
   /api/v1/events/{id}:
     get:
       summary: Consulta um evento recebido pelo identificador
@@ -70,6 +82,25 @@ paths:
           description: Evento encontrado
         '404':
           description: Evento nao encontrado
+  /api/v1/events/{id}/retry:
+    post:
+      summary: Reenfileira manualmente um evento com falha de publicacao ou processamento
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Evento reenfileirado com sucesso
+        '404':
+          description: Evento nao encontrado
+        '409':
+          description: Evento em estado nao reenfileiravel
+        '503':
+          description: Falha ao reenfileirar o evento no RabbitMQ
 components:
   schemas:
     StoreEventRequest:
