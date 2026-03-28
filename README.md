@@ -28,24 +28,24 @@ docker compose up --build
 ```
 
 Serviços expostos:
-- API Laravel: `http://localhost:8080`
-- Documentacao Swagger UI: `http://localhost:8080/docs`
-- Arquivo OpenAPI YAML: `http://localhost:8080/docs/openapi.yaml`
-- Health check da API: `http://localhost:8080/api/v1/health`
-- Exportacao de metricas Prometheus: `GET http://localhost:8080/api/v1/metrics`
-- Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
-- Resumo operacional: `GET http://localhost:8080/api/v1/events/summary`
-- Consulta de eventos: `GET http://localhost:8080/api/v1/events`
-- Consulta da quarentena: `GET http://localhost:8080/api/v1/quarantine`
-- Consulta de evento: `GET http://localhost:8080/api/v1/events/{id}`
-- Historico do evento: `GET http://localhost:8080/api/v1/events/{id}/history`
-- Reenfileiramento manual: `POST http://localhost:8080/api/v1/events/{id}/retry`
-- Replay da quarentena: `POST http://localhost:8080/api/v1/quarantine/replay`
-- Health nativo do Laravel: `http://localhost:8080/up`
-- PostgreSQL: `localhost:5432`
-- Redis: `localhost:6379`
-- RabbitMQ AMQP: `localhost:5672`
-- RabbitMQ Management: `http://localhost:15672`
+- API Laravel: `http://localhost:8081`
+- Documentacao Swagger UI: `http://localhost:8081/docs`
+- Arquivo OpenAPI YAML: `http://localhost:8081/docs/openapi.yaml`
+- Health check da API: `http://localhost:8081/api/v1/health`
+- Exportacao de metricas Prometheus: `GET http://localhost:8081/api/v1/metrics`
+- Recepcao de eventos: `POST http://localhost:8081/api/v1/events`
+- Resumo operacional: `GET http://localhost:8081/api/v1/events/summary`
+- Consulta de eventos: `GET http://localhost:8081/api/v1/events`
+- Consulta da quarentena: `GET http://localhost:8081/api/v1/quarantine`
+- Consulta de evento: `GET http://localhost:8081/api/v1/events/{id}`
+- Historico do evento: `GET http://localhost:8081/api/v1/events/{id}/history`
+- Reenfileiramento manual: `POST http://localhost:8081/api/v1/events/{id}/retry`
+- Replay da quarentena: `POST http://localhost:8081/api/v1/quarantine/replay`
+- Health nativo do Laravel: `http://localhost:8081/up`
+- PostgreSQL: `localhost:55432`
+- Redis: `localhost:6380`
+- RabbitMQ AMQP: `localhost:5673`
+- RabbitMQ Management: `http://localhost:15673`
 
 Na primeira subida o container da aplicação:
 - usa a própria imagem Docker como artefato de runtime, sem depender de bind mount do código-fonte
@@ -60,6 +60,7 @@ Os serviços `worker` e `ingest-worker` iniciam junto com `docker compose up`.
 
 A imagem de runtime já inclui o código da aplicação e as dependências PHP instaladas em build time. Se o código mudar localmente, é necessário reconstruir a imagem com `docker compose up --build`.
 O arquivo `.env.docker` fica sem segredo versionado; para fixar uma chave localmente, defina `APP_KEY` no `.env` ignorado pelo Git antes de subir os containers.
+Se precisar sobrescrever as portas expostas no host, defina `APP_PORT`, `POSTGRES_PORT_FORWARD`, `REDIS_PORT_FORWARD`, `RABBITMQ_PORT` e `RABBITMQ_MANAGEMENT_PORT` no `.env` local ou no shell antes do `docker compose up`.
 
 ## Resiliencia do consumo
 - falhas transitórias de processamento passam por retry automático com atraso progressivo até `EVENT_CONSUMER_MAX_ATTEMPTS`
@@ -146,7 +147,7 @@ composer quality
 ## Exemplo de envio de evento
 ```bash
 curl --request POST \
-  --url http://localhost:8080/api/v1/events \
+  --url http://localhost:8081/api/v1/events \
   --header 'Content-Type: application/json' \
   --header 'X-Ingest-Api-Key: change-me-ingest' \
   --header 'X-Trace-Id: trace-user-created-001' \
@@ -164,42 +165,42 @@ curl --request POST \
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/events?status=processed,processing_failed&trace_id=trace-user-created-001&page=1&per_page=20'
+  --url 'http://localhost:8081/api/v1/events?status=processed,processing_failed&trace_id=trace-user-created-001&page=1&per_page=20'
 ```
 
 ## Exemplo de resumo operacional
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/events/summary'
+  --url 'http://localhost:8081/api/v1/events/summary'
 ```
 
 ## Exemplo de exportacao de metricas
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/metrics'
+  --url 'http://localhost:8081/api/v1/metrics'
 ```
 
 ## Exemplo de reenfileiramento manual
 ```bash
 curl --request POST \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/retry
+  --url http://localhost:8081/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/retry
 ```
 
 ## Exemplo de consulta do historico
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/history?page=1&per_page=20'
+  --url 'http://localhost:8081/api/v1/events/9a1fd14b-4ce9-4321-a8af-b8d98d67a111/history?page=1&per_page=20'
 ```
 
 ## Exemplo de inspecao da quarentena
 ```bash
 curl --request GET \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url 'http://localhost:8080/api/v1/quarantine?limit=10'
+  --url 'http://localhost:8081/api/v1/quarantine?limit=10'
 ```
 
 ## Exemplo de replay da quarentena
@@ -207,7 +208,7 @@ curl --request GET \
 curl --request POST \
   --header 'Content-Type: application/json' \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url http://localhost:8080/api/v1/quarantine/replay \
+  --url http://localhost:8081/api/v1/quarantine/replay \
   --data '{
     "limit": 1
   }'
@@ -218,7 +219,7 @@ curl --request POST \
 curl --request POST \
   --header 'Content-Type: application/json' \
   --header 'X-Operations-Api-Key: change-me-operations' \
-  --url http://localhost:8080/api/v1/quarantine/replay \
+  --url http://localhost:8081/api/v1/quarantine/replay \
   --data '{
     "message_ids": ["evt-quarantine-replay-001"]
   }'

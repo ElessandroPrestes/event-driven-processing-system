@@ -1,7 +1,8 @@
 x-eventflow-runtime-env: &eventflow-runtime-env
   COMPOSER_HOME: /tmp/composer
   APP_ENV: docker
-  APP_URL: "http://localhost:${APP_PORT:-8080}"
+  APP_URL: "http://localhost:${APP_PORT:-8081}"
+  APP_PORT: "${APP_PORT:-8081}"
   APP_KEY: "${APP_KEY:-}"
   SHARED_RUNTIME_DIR: /var/run/eventflow
 
@@ -26,7 +27,7 @@ services:
       - --host=0.0.0.0
       - --port=8000
     ports:
-      - "${APP_PORT:-8080}:8000"
+      - "${APP_PORT:-8081}:8000"
     volumes:
       - runtime-config:/var/run/eventflow
     depends_on:
@@ -107,7 +108,7 @@ services:
       POSTGRES_USER: "${DB_USERNAME:-eventflow}"
       POSTGRES_PASSWORD: "${DB_PASSWORD:-secret}"
     ports:
-      - "${POSTGRES_PORT_FORWARD:-5432}:5432"
+      - "${POSTGRES_PORT_FORWARD:-55432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -120,7 +121,7 @@ services:
     image: redis:8-alpine
     container_name: eventflow-redis
     ports:
-      - "${REDIS_PORT_FORWARD:-6379}:6379"
+      - "${REDIS_PORT_FORWARD:-6380}:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -137,8 +138,8 @@ services:
       RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:-secret}"
       RABBITMQ_DEFAULT_VHOST: "${RABBITMQ_VHOST:-/}"
     ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+      - "${RABBITMQ_PORT:-5673}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
     healthcheck:
