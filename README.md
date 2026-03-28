@@ -29,6 +29,8 @@ docker compose up --build
 
 Serviços expostos:
 - API Laravel: `http://localhost:8080`
+- Documentacao Swagger UI: `http://localhost:8080/docs`
+- Arquivo OpenAPI YAML: `http://localhost:8080/docs/openapi.yaml`
 - Health check da API: `http://localhost:8080/api/v1/health`
 - Exportacao de metricas Prometheus: `GET http://localhost:8080/api/v1/metrics`
 - Recepcao de eventos: `POST http://localhost:8080/api/v1/events`
@@ -46,22 +48,54 @@ Serviços expostos:
 - RabbitMQ Management: `http://localhost:15672`
 
 Na primeira subida o container da aplicação:
-- copia `.env.example` para `.env` se necessário
-- instala dependências PHP
-- gera `APP_KEY` se necessário
+- usa a própria imagem Docker como artefato de runtime, sem depender de bind mount do código-fonte
+- carrega a configuração a partir de `.env.docker`
+- gera `APP_KEY` apenas se ela não estiver definida no ambiente
 - executa as migrations
 
-O serviço `worker` inicia junto com `docker compose up` e fica consumindo a fila RabbitMQ com o comando `php artisan events:consume`.
+Os serviços `worker` e `ingest-worker` iniciam junto com `docker compose up`.
+- `worker`: consome a fila interna de processamento com `php artisan events:consume`
+- `ingest-worker`: consome a fila de entrada AMQP com `php artisan events:consume-ingest`
+
+A imagem de runtime já inclui o código da aplicação e as dependências PHP instaladas em build time. Se o código mudar localmente, é necessário reconstruir a imagem com `docker compose up --build`.
 
 ## Resiliencia do consumo
 - falhas transitórias de processamento passam por retry automático com atraso progressivo até `EVENT_CONSUMER_MAX_ATTEMPTS`
 - o atraso progressivo pode ser ajustado com `EVENT_CONSUMER_RETRY_BASE_DELAY_MS`, `EVENT_CONSUMER_RETRY_MULTIPLIER` e `EVENT_CONSUMER_RETRY_MAX_DELAY_MS`
 - mensagens inválidas, órfãs ou com falha definitiva de processamento são encaminhadas para a fila de dead-letter `eventflow.processing.dead`
+- mensagens inválidas na entrada AMQP são encaminhadas para a fila de dead-letter `eventflow.ingest.dead`
+- a topologia de ingestao AMQP pode ser customizada com `RABBITMQ_INGEST_EXCHANGE`, `RABBITMQ_INGEST_QUEUE`, `RABBITMQ_INGEST_BINDING_KEY`, `RABBITMQ_INGEST_DEAD_LETTER_EXCHANGE`, `RABBITMQ_INGEST_DEAD_LETTER_QUEUE` e `RABBITMQ_INGEST_DEAD_LETTER_ROUTING_KEY`
 - a topologia de retry pode ser customizada com `RABBITMQ_RETRY_EXCHANGE`, `RABBITMQ_RETRY_QUEUE`, `RABBITMQ_RETRY_ROUTING_KEY` e `RABBITMQ_RETRY_RETURN_ROUTING_KEY`
 - a topologia de dead-letter pode ser customizada com `RABBITMQ_DEAD_LETTER_EXCHANGE`, `RABBITMQ_DEAD_LETTER_QUEUE` e `RABBITMQ_DEAD_LETTER_ROUTING_KEY`
 - a API operacional permite inspecionar e reenfileirar a DLQ sem depender do painel do RabbitMQ Management
 - o replay da quarentena pode ser feito em lote ou de forma direcionada por `message_id`
 - a inspecao da quarentena faz um peek por AMQP com requeue e pode alterar a ordem relativa das mensagens na DLQ
+
+## Ingestao via RabbitMQ
+- publicar eventos brutos no exchange `eventflow.events.ingest`
+- a fila de entrada padrao e `eventflow.ingest`
+- o contrato aceito e equivalente ao da API REST
+- `event_name` pode vir no corpo, na propriedade AMQP `type` ou na routing key
+- `payload` pode vir no campo `payload` ou ser inferido a partir do corpo sem os campos reservados
+- `idempotency_key` pode vir no corpo, no header AMQP `idempotency_key` ou na propriedade `message_id`
+- `trace_id` pode vir no corpo, no header AMQP `trace_id` ou na propriedade `correlation_id`
+
+Exemplo de corpo JSON:
+```json
+{
+  "event_name": "user.created",
+  "payload": {
+    "user_id": "9a1fd14b-4ce9-4321-a8af-b8d98d67a111",
+    "email": "user@example.com"
+  },
+  "metadata": {
+    "source": "erp"
+  },
+  "idempotency_key": "evt-user-created-amqp-001",
+  "trace_id": "trace-user-created-amqp-001",
+  "occurred_at": "2026-03-28T12:00:00Z"
+}
+```
 
 ## Autenticacao da API
 - ingestao de eventos: enviar `X-Ingest-Api-Key` com o valor configurado em `EVENT_INGEST_API_KEY`
@@ -99,6 +133,13 @@ composer quality
 ```
 
 `composer test:coverage` exige um driver de cobertura (`pcov` ou `xdebug`). A imagem Docker do projeto e a workflow do GitHub Actions passam a usar `pcov` e aplicam cobertura minima de 80%.
+
+## Entrega continua
+- a pipeline de CI continua em `.github/workflows/ci.yml`, validando estilo, analise estatica e cobertura minima
+- a pipeline de CD publica a imagem Docker do runtime em `ghcr.io/<owner>/eventflow-platform`
+- a publicacao acontece pela workflow `.github/workflows/cd.yml`
+- a workflow de CD roda em `push` para `develop`, `main`, `master`, tags `v*` e tambem pode ser disparada manualmente com `workflow_dispatch`
+- a mesma imagem publicada atende API, worker e ingest-worker; o comportamento final depende apenas do comando executado no container
 
 ## Exemplo de envio de evento
 ```bash
@@ -182,4 +223,4 @@ curl --request POST \
 ```
 
 ## Escopo da etapa atual
-Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, listagem paginada de eventos, historico paginado de transicoes, reenfileiramento manual, autenticacao por chave de API com escopos separados, rate limit por escopo e IP, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.
+Esta etapa estabelece a base do backend, a infraestrutura local, a recepcao de eventos por API REST e por RabbitMQ, o processamento assincrono por worker RabbitMQ, os controles operacionais de resumo, listagem paginada de eventos, historico paginado de transicoes, reenfileiramento manual, autenticacao por chave de API com escopos separados, rate limit por escopo e IP, correlacao distribuida por `trace_id`, exportacao de metricas operacionais em formato Prometheus, retry automatico com atraso progressivo, quarentena de mensagens terminais via dead-letter queue e operacao autenticada de inspecao e replay da DLQ.
