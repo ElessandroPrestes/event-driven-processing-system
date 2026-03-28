@@ -23,7 +23,8 @@ if [ ! -f "${environment_file}" ]; then
 fi
 
 if [ ! -f vendor/autoload.php ]; then
-    composer install --no-interaction --prefer-dist
+    echo "vendor/autoload.php nao encontrado. Reconstrua a imagem Docker antes de iniciar o container." >&2
+    exit 1
 fi
 
 until pg_isready \
@@ -45,7 +46,7 @@ until nc -z "${RABBITMQ_HOST:-rabbitmq}" "${RABBITMQ_PORT:-5672}"; do
     sleep 2
 done
 
-if ! grep -q '^APP_KEY=base64:' "${environment_file}"; then
+if [ -z "${APP_KEY:-}" ] && ! grep -q '^APP_KEY=base64:' "${environment_file}"; then
     php artisan key:generate --ansi --force
 fi
 

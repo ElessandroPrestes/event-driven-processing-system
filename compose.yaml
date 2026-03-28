@@ -10,14 +10,11 @@ services:
       dockerfile: docker/php/Dockerfile
     container_name: eventflow-app
     working_dir: /var/www/html
-    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     environment:
       <<: *eventflow-runtime-env
       RUN_MIGRATIONS: "true"
     env_file:
       - .env.docker
-    volumes:
-      - ./:/var/www/html
     entrypoint:
       - /usr/local/bin/docker-entrypoint.sh
     command:
@@ -48,14 +45,11 @@ services:
       dockerfile: docker/php/Dockerfile
     container_name: eventflow-worker
     working_dir: /var/www/html
-    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     environment:
       <<: *eventflow-runtime-env
       RUN_MIGRATIONS: "false"
     env_file:
       - .env.docker
-    volumes:
-      - ./:/var/www/html
     entrypoint:
       - /usr/local/bin/docker-entrypoint.sh
     command:

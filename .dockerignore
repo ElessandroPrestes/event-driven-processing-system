@@ -1,7 +1,12 @@
 .git
 .github
+.env
 .phpunit.cache
 bootstrap/cache/*
 node_modules
 storage/logs/*
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+tests
 vendor
