@@ -26,7 +26,7 @@ final class EloquentEventHistoryRepository implements EventHistoryRepository
         ?array $context = null,
     ): EventHistoryEntryData {
         $record = EventHistoryRecord::query()->create([
-            'id' => (string) Str::uuid(),
+            'id' => (string) Str::orderedUuid(),
             'event_id' => $eventId,
             'action' => $action,
             'source' => $source,
