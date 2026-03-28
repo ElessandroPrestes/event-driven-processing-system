@@ -15,7 +15,7 @@ final class RabbitMqTopologyManager
         $ingestExchange = (string) config('event_pipeline.rabbitmq.ingest.exchange');
         $ingestExchangeType = (string) config('event_pipeline.rabbitmq.ingest.exchange_type');
         $ingestQueue = (string) config('event_pipeline.rabbitmq.ingest.queue');
-        $ingestBindingKey = (string) config('event_pipeline.rabbitmq.ingest.binding_key');
+        $ingestBindingKey = trim((string) config('event_pipeline.rabbitmq.ingest.binding_key'));
         $ingestDeadLetterExchange = (string) config('event_pipeline.rabbitmq.ingest.dead_letter_exchange');
         $ingestDeadLetterExchangeType = (string) config('event_pipeline.rabbitmq.ingest.dead_letter_exchange_type');
         $ingestDeadLetterQueue = (string) config('event_pipeline.rabbitmq.ingest.dead_letter_queue');
@@ -30,6 +30,10 @@ final class RabbitMqTopologyManager
         $deadLetterQueue = (string) config('event_pipeline.rabbitmq.dead_letter_queue');
         $deadLetterRoutingKey = (string) config('event_pipeline.rabbitmq.dead_letter_routing_key');
         $durable = (bool) config('event_pipeline.rabbitmq.durable');
+
+        if ($ingestBindingKey === '') {
+            $ingestBindingKey = '#';
+        }
 
         $channel->exchange_declare($exchange, $exchangeType, false, $durable, false);
         $channel->exchange_declare($ingestExchange, $ingestExchangeType, false, $durable, false);

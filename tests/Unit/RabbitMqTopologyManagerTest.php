@@ -9,6 +9,8 @@ afterEach(function (): void {
 });
 
 it('declares the processing topology with retry and dead-letter queues', function (): void {
+    config()->set('event_pipeline.rabbitmq.ingest.binding_key', '');
+
     $channel = Mockery::mock(AMQPChannel::class);
 
     $channel->shouldReceive('exchange_declare')
