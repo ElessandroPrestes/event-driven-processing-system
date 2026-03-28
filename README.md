@@ -50,7 +50,8 @@ Serviços expostos:
 Na primeira subida o container da aplicação:
 - usa a própria imagem Docker como artefato de runtime, sem depender de bind mount do código-fonte
 - carrega a configuração a partir de `.env.docker`
-- gera `APP_KEY` apenas se ela não estiver definida no ambiente
+- propaga `APP_KEY` do `.env` local quando ela estiver definida
+- gera e compartilha `APP_KEY` automaticamente entre `app`, `worker` e `ingest-worker` quando ela não estiver definida
 - executa as migrations
 
 Os serviços `worker` e `ingest-worker` iniciam junto com `docker compose up`.
@@ -58,6 +59,7 @@ Os serviços `worker` e `ingest-worker` iniciam junto com `docker compose up`.
 - `ingest-worker`: consome a fila de entrada AMQP com `php artisan events:consume-ingest`
 
 A imagem de runtime já inclui o código da aplicação e as dependências PHP instaladas em build time. Se o código mudar localmente, é necessário reconstruir a imagem com `docker compose up --build`.
+O arquivo `.env.docker` fica sem segredo versionado; para fixar uma chave localmente, defina `APP_KEY` no `.env` ignorado pelo Git antes de subir os containers.
 
 ## Resiliencia do consumo
 - falhas transitórias de processamento passam por retry automático com atraso progressivo até `EVENT_CONSUMER_MAX_ATTEMPTS`
