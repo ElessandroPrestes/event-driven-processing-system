@@ -4,6 +4,12 @@ set -euo pipefail
 
 cd /var/www/html
 
+environment_file=".env"
+
+if [ -n "${APP_ENV:-}" ] && [ -f ".env.${APP_ENV}" ]; then
+    environment_file=".env.${APP_ENV}"
+fi
+
 mkdir -p "${COMPOSER_HOME:-/tmp/composer}" \
     bootstrap/cache \
     storage/framework/cache \
@@ -12,8 +18,8 @@ mkdir -p "${COMPOSER_HOME:-/tmp/composer}" \
     storage/framework/views \
     storage/logs
 
-if [ ! -f .env ]; then
-    cp .env.example .env
+if [ ! -f "${environment_file}" ]; then
+    cp .env.example "${environment_file}"
 fi
 
 if [ ! -f vendor/autoload.php ]; then
@@ -39,11 +45,14 @@ until nc -z "${RABBITMQ_HOST:-rabbitmq}" "${RABBITMQ_PORT:-5672}"; do
     sleep 2
 done
 
-if ! grep -q '^APP_KEY=base64:' .env; then
+if ! grep -q '^APP_KEY=base64:' "${environment_file}"; then
     php artisan key:generate --ansi --force
 fi
 
 php artisan optimize:clear --ansi
-php artisan migrate --force --ansi
+
+if [ "${RUN_MIGRATIONS:-true}" = "true" ]; then
+    php artisan migrate --force --ansi
+fi
 
 exec "$@"

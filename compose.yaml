@@ -1,3 +1,8 @@
+x-eventflow-runtime-env: &eventflow-runtime-env
+  COMPOSER_HOME: /tmp/composer
+  APP_ENV: docker
+  APP_URL: "http://localhost:${APP_PORT:-8080}"
+
 services:
   app:
     build:
@@ -7,7 +12,10 @@ services:
     working_dir: /var/www/html
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     environment:
-      COMPOSER_HOME: /tmp/composer
+      <<: *eventflow-runtime-env
+      RUN_MIGRATIONS: "true"
+    env_file:
+      - .env.docker
     volumes:
       - ./:/var/www/html
     entrypoint:
@@ -42,7 +50,10 @@ services:
     working_dir: /var/www/html
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     environment:
-      COMPOSER_HOME: /tmp/composer
+      <<: *eventflow-runtime-env
+      RUN_MIGRATIONS: "false"
+    env_file:
+      - .env.docker
     volumes:
       - ./:/var/www/html
     entrypoint:
