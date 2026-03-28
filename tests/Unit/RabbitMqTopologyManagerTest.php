@@ -17,11 +17,41 @@ it('declares the processing topology with retry and dead-letter queues', functio
 
     $channel->shouldReceive('exchange_declare')
         ->once()
+        ->with('eventflow.events.ingest', 'topic', false, true, false);
+
+    $channel->shouldReceive('exchange_declare')
+        ->once()
+        ->with('eventflow.events.ingest.dlx', 'direct', false, true, false);
+
+    $channel->shouldReceive('exchange_declare')
+        ->once()
         ->with('eventflow.events.retry', 'direct', false, true, false);
 
     $channel->shouldReceive('exchange_declare')
         ->once()
         ->with('eventflow.events.dlx', 'direct', false, true, false);
+
+    $channel->shouldReceive('queue_declare')
+        ->once()
+        ->with(
+            'eventflow.ingest',
+            false,
+            true,
+            false,
+            false,
+            false,
+            Mockery::on(function (mixed $arguments): bool {
+                return $arguments instanceof AMQPTable
+                    && $arguments->getNativeData() === [
+                        'x-dead-letter-exchange' => 'eventflow.events.ingest.dlx',
+                        'x-dead-letter-routing-key' => 'eventflow.ingest.dead',
+                    ];
+            }),
+        );
+
+    $channel->shouldReceive('queue_declare')
+        ->once()
+        ->with('eventflow.ingest.dead', false, true, false, false);
 
     $channel->shouldReceive('queue_declare')
         ->once()
@@ -62,6 +92,14 @@ it('declares the processing topology with retry and dead-letter queues', functio
     $channel->shouldReceive('queue_declare')
         ->once()
         ->with('eventflow.processing.dead', false, true, false, false);
+
+    $channel->shouldReceive('queue_bind')
+        ->once()
+        ->with('eventflow.ingest', 'eventflow.events.ingest', '#');
+
+    $channel->shouldReceive('queue_bind')
+        ->once()
+        ->with('eventflow.ingest.dead', 'eventflow.events.ingest.dlx', 'eventflow.ingest.dead');
 
     $channel->shouldReceive('queue_bind')
         ->once()

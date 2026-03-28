@@ -21,7 +21,7 @@ final class ReceiveEventAction
         private readonly EventHistoryRecorder $history,
     ) {}
 
-    public function handle(EventPayloadData $payload): ReceiveEventResult
+    public function handle(EventPayloadData $payload, string $source = 'api'): ReceiveEventResult
     {
         $existingEvent = $this->events->findByIdempotencyKey($payload->idempotencyKey);
 
@@ -33,7 +33,7 @@ final class ReceiveEventAction
             $this->history->record(
                 event: $existingEvent,
                 action: 'duplicate_detected',
-                source: 'api',
+                source: $source,
                 fromStatus: $existingEvent->status,
                 context: [
                     'idempotency_key' => $existingEvent->idempotencyKey,
@@ -55,7 +55,7 @@ final class ReceiveEventAction
         $this->history->record(
             event: $event,
             action: 'received',
-            source: 'api',
+            source: $source,
             context: [
                 'idempotency_key' => $event->idempotencyKey,
             ],
@@ -76,7 +76,7 @@ final class ReceiveEventAction
             $this->history->record(
                 event: $failedEvent,
                 action: 'publish_failed',
-                source: 'api',
+                source: $source,
                 fromStatus: $event->status,
                 context: [
                     'error' => $exception->getMessage(),
@@ -98,7 +98,7 @@ final class ReceiveEventAction
         $this->history->record(
             event: $queuedEvent,
             action: 'queued',
-            source: 'api',
+            source: $source,
             fromStatus: $event->status,
             context: [
                 'queued_at' => $queuedEvent->queuedAt?->toIso8601String(),
