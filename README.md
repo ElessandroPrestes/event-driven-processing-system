@@ -117,6 +117,13 @@ Exemplo de corpo JSON:
 - quando o header nao e enviado, a aplicacao gera um `trace_id` automaticamente e o devolve no header de resposta `X-Trace-Id`
 - a listagem de eventos aceita o filtro `trace_id` para localizar todos os registros ligados a uma mesma correlacao
 
+## Health e readiness
+- `GET /api/v1/health` agora valida readiness do pipeline, nao apenas liveness da API
+- o payload inclui checks de PostgreSQL, Redis, RabbitMQ e heartbeat dos workers obrigatorios
+- quando algum componente obrigatorio falha ou fica stale, a resposta passa para `503 Service Unavailable`
+- `worker` e `ingest-worker` atualizam heartbeats em diretório compartilhado para a API detectar consumers travados ou indisponiveis
+- a tolerancia de stale dos heartbeats pode ser ajustada com `EVENT_WORKER_HEARTBEAT_STALE_AFTER_SECONDS`
+
 ## Paginacao operacional
 - `GET /api/v1/events` usa paginacao com `page` e `per_page`
 - o tamanho padrao da pagina e controlado por `EVENT_API_EVENTS_DEFAULT_PER_PAGE`

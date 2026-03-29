@@ -8,10 +8,20 @@ servers:
 paths:
   /api/v1/health:
     get:
-      summary: Verifica a saude da aplicacao
+      summary: Verifica a readiness operacional da aplicacao e do pipeline assincrono
       responses:
         '200':
-          description: Aplicacao saudavel
+          description: Aplicacao pronta para operar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Algum componente obrigatorio do pipeline esta degradado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
   /api/v1/metrics:
     get:
       summary: Exporta metricas operacionais em formato Prometheus
@@ -322,44 +332,39 @@ paths:
         '503':
           description: Falha ao reenfileirar o evento no RabbitMQ
 components:
-  parameters:
-    TraceIdHeader:
-      in: header
-      name: X-Trace-Id
-      required: false
-      schema:
-        type: string
-        maxLength: 128
-  securitySchemes:
-    IngestApiKey:
-      type: apiKey
-      in: header
-      name: X-Ingest-Api-Key
-    OperationsApiKey:
-      type: apiKey
-      in: header
-      name: X-Operations-Api-Key
-  responses:
-    TooManyRequests:
-      description: Limite de requisicoes excedido para o escopo autenticado
-      headers:
-        Retry-After:
-          schema:
-            type: integer
-            minimum: 0
-        X-RateLimit-Limit:
-          schema:
-            type: integer
-            minimum: 1
-        X-RateLimit-Remaining:
-          schema:
-            type: integer
-            minimum: 0
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/RateLimitError'
   schemas:
+    HealthResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            service:
+              type: string
+            status:
+              type: string
+              enum: [ok, degraded]
+            ready:
+              type: boolean
+            timestamp:
+              type: string
+              format: date-time
+            checks:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  observed_at:
+                    type: string
+                    format: date-time
+                  message:
+                    type: string
+                    nullable: true
+                  details:
+                    type: object
+                    additionalProperties: true
     RateLimitError:
       type: object
       required:
@@ -415,6 +420,61 @@ components:
         has_more_pages:
           type: boolean
     StoreEventRequest:
+      type: object
+      required:
+        - event_name
+        - payload
+      properties:
+        event_name:
+          type: string
+          example: user.created
+        payload:
+          type: object
+          additionalProperties: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        occurred_at:
+          type: string
+          format: date-time
+  parameters:
+    TraceIdHeader:
+      in: header
+      name: X-Trace-Id
+      required: false
+      schema:
+        type: string
+        maxLength: 128
+  securitySchemes:
+    IngestApiKey:
+      type: apiKey
+      in: header
+      name: X-Ingest-Api-Key
+    OperationsApiKey:
+      type: apiKey
+      in: header
+      name: X-Operations-Api-Key
+  responses:
+    TooManyRequests:
+      description: Limite de requisicoes excedido para o escopo autenticado
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+            minimum: 0
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+            minimum: 1
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+            minimum: 0
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/RateLimitError'
       type: object
       required:
         - event_name
