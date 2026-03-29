@@ -11,13 +11,17 @@ use App\Application\Events\Processors\UserCreatedProcessor;
 use App\Application\Events\Services\EventHistoryRecorder;
 use App\Application\Events\Services\EventProcessorRegistry;
 use App\Application\Events\Services\EventRetryDelayCalculator;
+use App\Application\Health\Contracts\WorkerHeartbeatStore;
 use App\Application\Health\Services\HealthProbeRegistry;
+use App\Application\Health\Services\WorkerHeartbeatRecorder;
 use App\Domain\Events\Contracts\EventHistoryRepository;
 use App\Domain\Events\Contracts\EventPublisher;
 use App\Domain\Events\Contracts\EventRepository;
 use App\Infrastructure\Health\DatabaseHealthProbe;
+use App\Infrastructure\Health\FileWorkerHeartbeatStore;
 use App\Infrastructure\Health\RabbitMqHealthProbe;
 use App\Infrastructure\Health\RedisHealthProbe;
+use App\Infrastructure\Health\WorkersHealthProbe;
 use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqDelayedRetryScheduler;
@@ -40,13 +44,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(EventQuarantineManager::class, RabbitMqEventQuarantine::class);
         $this->app->bind(EventRepository::class, EloquentEventRepository::class);
         $this->app->bind(EventHistoryRepository::class, EloquentEventHistoryRepository::class);
+        $this->app->bind(WorkerHeartbeatStore::class, FileWorkerHeartbeatStore::class);
         $this->app->singleton(EventHistoryRecorder::class, EventHistoryRecorder::class);
         $this->app->singleton(EventRetryDelayCalculator::class, EventRetryDelayCalculator::class);
+        $this->app->singleton(WorkerHeartbeatRecorder::class, WorkerHeartbeatRecorder::class);
         $this->app->singleton(HealthProbeRegistry::class, function ($app): HealthProbeRegistry {
             return new HealthProbeRegistry([
                 $app->make(DatabaseHealthProbe::class),
                 $app->make(RedisHealthProbe::class),
                 $app->make(RabbitMqHealthProbe::class),
+                $app->make(WorkersHealthProbe::class),
             ]);
         });
         $this->app->singleton(EventProcessorRegistry::class, function ($app): EventProcessorRegistry {

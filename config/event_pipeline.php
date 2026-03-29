@@ -90,6 +90,19 @@ return [
         'redis' => [
             'connection' => env('EVENT_HEALTH_REDIS_CONNECTION', 'default'),
         ],
+        'workers' => [
+            'heartbeat_dir' => env(
+                'EVENT_WORKER_HEARTBEAT_DIR',
+                rtrim((string) env('SHARED_RUNTIME_DIR', storage_path('app/runtime')), '/').'/heartbeats',
+            ),
+            'stale_after_seconds' => (int) env('EVENT_WORKER_HEARTBEAT_STALE_AFTER_SECONDS', 60),
+            'processing_worker_name' => env('EVENT_PROCESSING_WORKER_NAME', 'worker'),
+            'ingest_worker_name' => env('EVENT_INGEST_WORKER_NAME', 'ingest-worker'),
+            'required' => array_values(array_unique(array_filter([
+                env('EVENT_PROCESSING_WORKER_NAME', 'worker'),
+                env('EVENT_INGEST_WORKER_NAME', 'ingest-worker'),
+            ], static fn (mixed $worker): bool => is_string($worker) && trim($worker) !== ''))),
+        ],
     ],
 
     'consumer' => [

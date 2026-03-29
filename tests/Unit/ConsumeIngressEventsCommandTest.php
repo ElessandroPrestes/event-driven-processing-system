@@ -7,6 +7,7 @@ use App\Console\Commands\ConsumeIngressEventsCommand;
 use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqInboundEventMessageHandler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqInboundEventPayloadFactory;
+use Illuminate\Support\Facades\File;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Exception\AMQPTimeoutException;
@@ -17,11 +18,18 @@ use Tests\Fakes\InMemoryEventRepository;
 
 afterEach(function (): void {
     Mockery::close();
+
+    if (isset($this->heartbeatDir) && is_string($this->heartbeatDir)) {
+        File::deleteDirectory($this->heartbeatDir);
+    }
 });
 
 it('consumes a single inbound rabbitmq message when running in once mode', function (): void {
     config()->set('event_pipeline.rabbitmq.ingest.queue', 'eventflow.ingest');
     config()->set('event_pipeline.consumer.idle_timeout', 5);
+    config()->set('event_pipeline.health.workers.ingest_worker_name', 'ingest-worker');
+    $this->heartbeatDir = storage_path('framework/testing/heartbeats/consume-ingest-once-'.uniqid('', true));
+    config()->set('event_pipeline.health.workers.heartbeat_dir', $this->heartbeatDir);
 
     [$handler] = makeIngressCommandHandler();
     $connections = Mockery::mock(AmqpConnectionFactory::class);
@@ -53,11 +61,16 @@ it('consumes a single inbound rabbitmq message when running in once mode', funct
     $this->artisan('events:consume-ingest --once')
         ->expectsOutputToContain('recebido via RabbitMQ com status queued')
         ->assertExitCode(ConsumeIngressEventsCommand::SUCCESS);
+
+    expect($this->heartbeatDir.'/ingest-worker.json')->toBeFile();
 });
 
 it('keeps waiting when the inbound rabbitmq consumer loop times out between messages', function (): void {
     config()->set('event_pipeline.rabbitmq.ingest.queue', 'eventflow.ingest');
     config()->set('event_pipeline.consumer.idle_timeout', 9);
+    config()->set('event_pipeline.health.workers.ingest_worker_name', 'ingest-worker');
+    $this->heartbeatDir = storage_path('framework/testing/heartbeats/consume-ingest-timeout-'.uniqid('', true));
+    config()->set('event_pipeline.health.workers.heartbeat_dir', $this->heartbeatDir);
 
     [$handler] = makeIngressCommandHandler();
     $connections = Mockery::mock(AmqpConnectionFactory::class);
@@ -84,6 +97,8 @@ it('keeps waiting when the inbound rabbitmq consumer loop times out between mess
 
     $this->artisan('events:consume-ingest --idle-timeout=9')
         ->assertExitCode(ConsumeIngressEventsCommand::SUCCESS);
+
+    expect($this->heartbeatDir.'/ingest-worker.json')->toBeFile();
 });
 
 /**

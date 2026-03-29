@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Application\Health\Services\WorkerHeartbeatRecorder;
 use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqInboundEventMessageHandler;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqTopologyManager;
@@ -21,21 +22,28 @@ final class ConsumeIngressEventsCommand extends Command
         RabbitMqInboundEventMessageHandler $handler,
         AmqpConnectionFactory $connections,
         RabbitMqTopologyManager $topology,
+        WorkerHeartbeatRecorder $heartbeats,
     ): int {
         $connection = $connections->make();
         $channel = $connection->channel();
         $queue = (string) config('event_pipeline.rabbitmq.ingest.queue');
         $idleTimeout = (int) ($this->option('idle-timeout') ?: config('event_pipeline.consumer.idle_timeout'));
+        $workerName = (string) config('event_pipeline.health.workers.ingest_worker_name', 'ingest-worker');
+        $heartbeatContext = [
+            'command' => (string) $this->getName(),
+            'queue' => $queue,
+        ];
 
         try {
             $topology->declare($channel);
             $channel->basic_qos(0, 1, false);
+            $heartbeats->record($workerName, $heartbeatContext);
 
             if ((bool) $this->option('once')) {
                 $message = $channel->basic_get($queue, false);
 
                 if ($message instanceof AMQPMessage) {
-                    $this->processMessage($message, $handler);
+                    $this->processMessage($message, $handler, $heartbeats, $workerName, $heartbeatContext);
                 }
 
                 return self::SUCCESS;
@@ -43,7 +51,7 @@ final class ConsumeIngressEventsCommand extends Command
 
             $channel->basic_consume(
                 queue: $queue,
-                callback: fn (AMQPMessage $message) => $this->processMessage($message, $handler),
+                callback: fn (AMQPMessage $message) => $this->processMessage($message, $handler, $heartbeats, $workerName, $heartbeatContext),
                 no_ack: false,
             );
 
@@ -51,6 +59,8 @@ final class ConsumeIngressEventsCommand extends Command
                 try {
                     $channel->wait(null, false, $idleTimeout);
                 } catch (AMQPTimeoutException) {
+                    $heartbeats->record($workerName, $heartbeatContext);
+
                     continue;
                 }
             }
@@ -62,9 +72,19 @@ final class ConsumeIngressEventsCommand extends Command
         }
     }
 
-    private function processMessage(AMQPMessage $message, RabbitMqInboundEventMessageHandler $handler): void
-    {
+    /**
+     * @param  array<string, mixed>  $heartbeatContext
+     */
+    private function processMessage(
+        AMQPMessage $message,
+        RabbitMqInboundEventMessageHandler $handler,
+        WorkerHeartbeatRecorder $heartbeats,
+        string $workerName,
+        array $heartbeatContext,
+    ): void {
+        $heartbeats->record($workerName, $heartbeatContext);
         $event = $handler->handle($message);
+        $heartbeats->record($workerName, $heartbeatContext);
 
         if ($event !== null) {
             $this->line(sprintf(

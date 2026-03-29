@@ -11,6 +11,7 @@ use App\Domain\Events\DataTransferObjects\StoredEventData;
 use App\Infrastructure\Messaging\RabbitMq\Contracts\AmqpConnectionFactory;
 use App\Infrastructure\Messaging\RabbitMq\RabbitMqMessageHandler;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\File;
 use PhpAmqpLib\Channel\AMQPChannel;
 use PhpAmqpLib\Connection\AMQPStreamConnection;
 use PhpAmqpLib\Exception\AMQPTimeoutException;
@@ -22,12 +23,19 @@ use Tests\Fakes\InMemoryEventRepository;
 
 afterEach(function (): void {
     Mockery::close();
+
+    if (isset($this->heartbeatDir) && is_string($this->heartbeatDir)) {
+        File::deleteDirectory($this->heartbeatDir);
+    }
 });
 
 it('consumes a single message when running in once mode', function (): void {
     config()->set('event_pipeline.rabbitmq.queue', 'eventflow.processing');
     config()->set('event_pipeline.consumer.max_attempts', 3);
     config()->set('event_pipeline.consumer.idle_timeout', 5);
+    config()->set('event_pipeline.health.workers.processing_worker_name', 'worker');
+    $this->heartbeatDir = storage_path('framework/testing/heartbeats/consume-events-once-'.uniqid('', true));
+    config()->set('event_pipeline.health.workers.heartbeat_dir', $this->heartbeatDir);
 
     [$handler, $events] = makeCommandHandler();
     $event = queueCommandEvent($events, 'user.created', [
@@ -52,12 +60,17 @@ it('consumes a single message when running in once mode', function (): void {
     $this->artisan('events:consume --once')
         ->expectsOutputToContain(sprintf('Evento %s finalizado com status processed', $event->id))
         ->assertExitCode(ConsumeEventsCommand::SUCCESS);
+
+    expect($this->heartbeatDir.'/worker.json')->toBeFile();
 });
 
 it('keeps waiting when the consumer loop times out between messages', function (): void {
     config()->set('event_pipeline.rabbitmq.queue', 'eventflow.processing');
     config()->set('event_pipeline.consumer.max_attempts', 7);
     config()->set('event_pipeline.consumer.idle_timeout', 9);
+    config()->set('event_pipeline.health.workers.processing_worker_name', 'worker');
+    $this->heartbeatDir = storage_path('framework/testing/heartbeats/consume-events-timeout-'.uniqid('', true));
+    config()->set('event_pipeline.health.workers.heartbeat_dir', $this->heartbeatDir);
 
     [$handler] = makeCommandHandler();
     $connections = Mockery::mock(AmqpConnectionFactory::class);
@@ -84,6 +97,8 @@ it('keeps waiting when the consumer loop times out between messages', function (
 
     $this->artisan('events:consume --idle-timeout=9')
         ->assertExitCode(ConsumeEventsCommand::SUCCESS);
+
+    expect($this->heartbeatDir.'/worker.json')->toBeFile();
 });
 
 /**
