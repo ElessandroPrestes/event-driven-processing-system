@@ -14,6 +14,10 @@ return [
         'user' => env('RABBITMQ_USER', 'guest'),
         'password' => env('RABBITMQ_PASSWORD', 'guest'),
         'vhost' => env('RABBITMQ_VHOST', '/'),
+        'connection_timeout' => (float) env('RABBITMQ_CONNECTION_TIMEOUT', 3.0),
+        'read_write_timeout' => (float) env('RABBITMQ_READ_WRITE_TIMEOUT', 3.0),
+        'heartbeat' => (int) env('RABBITMQ_HEARTBEAT', 0),
+        'channel_rpc_timeout' => (float) env('RABBITMQ_CHANNEL_RPC_TIMEOUT', 0.0),
         'exchange' => env('RABBITMQ_EXCHANGE', 'eventflow.events'),
         'exchange_type' => env('RABBITMQ_EXCHANGE_TYPE', 'topic'),
         'queue' => env('RABBITMQ_QUEUE', 'eventflow.processing'),
@@ -77,6 +81,15 @@ return [
 
     'observability' => [
         'trace_header' => env('EVENT_TRACE_HEADER', 'X-Trace-Id'),
+    ],
+
+    'health' => [
+        'database' => [
+            'connection' => env('EVENT_HEALTH_DB_CONNECTION', env('DB_CONNECTION', 'pgsql')),
+        ],
+        'redis' => [
+            'connection' => env('EVENT_HEALTH_REDIS_CONNECTION', 'default'),
+        ],
     ],
 
     'consumer' => [
