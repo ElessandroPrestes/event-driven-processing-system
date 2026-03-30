@@ -1,6 +1,6 @@
-# eventflow-platform
+# event-driven-processing-system
 
-Plataforma de processamento assíncrono de eventos com Laravel, RabbitMQ, PostgreSQL, Redis e API RESTful.
+Este projeto implementa um pipeline de processamento de eventos assíncrono, demonstrando boas práticas de integração entre mensageria, persistência e exposição de APIs. A solução foi construída para evidenciar experiência prática em arquiteturas modernas de sistemas distribuídos.
 
 ## Stack
 - Laravel 13
